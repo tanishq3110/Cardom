@@ -1,0 +1,11 @@
+# shadcn / Skiper UI Components
+#
+# Components added via the shadcn CLI land here automatically.
+# Free Skiper UI components are added with:
+#
+#   npx shadcn add @skiper-ui/<component-name>
+#
+# Standard shadcn/ui components are added with:
+#
+#   npx shadcn add <component-name>
+
