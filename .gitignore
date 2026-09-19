@@ -25,6 +25,7 @@ dist-ssr
 *.sln
 *.sw?
 
+# Local environment variables — never commit
 # Environment variables — never commit
 .env
 .env.local
