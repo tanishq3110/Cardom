@@ -32,3 +32,11 @@ dist-ssr
 .env.*.local
 .env.production
 .env.production.local
+
+# Android / Capacitor build artifacts
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/capacitor-cordova-android-plugins/build/
+.capacitor-info.json

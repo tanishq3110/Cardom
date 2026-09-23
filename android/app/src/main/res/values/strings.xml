@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cardom User</string>
+    <string name="title_activity_main">Cardom User</string>
+    <string name="package_name">com.cardom.user</string>
+    <string name="custom_url_scheme">com.cardom.user</string>
+</resources>
