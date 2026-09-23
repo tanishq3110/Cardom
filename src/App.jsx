@@ -1,5 +1,7 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
+import { Capacitor } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
 import { AuthProvider } from '@/context/AuthContext'
 import { ComparisonProvider } from '@/context/ComparisonContext'
 import { FloatingCompareBar } from '@/components/common/FloatingCompareBar'
@@ -39,6 +41,29 @@ function ScrollToTop() {
   return null
 }
 
+/**
+ * AndroidBackButton — handles the Android hardware back button inside Capacitor WebView.
+ * On the web this component is a complete no-op (Capacitor.isNativePlatform() returns false).
+ * On Android: navigate(-1) if history exists, otherwise exit the app gracefully.
+ */
+function AndroidBackButton() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const handler = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (canGoBack) {
+        navigate(-1)
+      } else {
+        CapApp.exitApp()
+      }
+    })
+    return () => {
+      handler.then(h => h.remove())
+    }
+  }, [navigate])
+  return null
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -46,6 +71,7 @@ function App() {
       <AuthProvider>
         <ComparisonProvider>
           <ScrollToTop />
+          <AndroidBackButton />
           <Routes>
             {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
