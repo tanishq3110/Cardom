@@ -24,11 +24,13 @@ import { TermsPage } from '@/pages/TermsPage'
 import { CookiePage } from '@/pages/CookiePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { SignUpPage } from '@/pages/SignUpPage'
+import { ResetPasswordPage } from '@/pages/ResetPasswordPage'
 import { AccountPage } from '@/pages/AccountPage'
 import { FavoritesPage } from '@/pages/FavoritesPage'
 import { MyListingsPage } from '@/pages/MyListingsPage'
 import { EditCarPage } from '@/pages/EditCarPage'
 import { MyInquiriesPage } from '@/pages/MyInquiriesPage'
+import { EmailVerificationBanner } from '@/components/common/EmailVerificationBanner'
 
 /**
  * ScrollToTop helper — ensures navigating to a new route scrolls to the top.
@@ -72,6 +74,7 @@ function App() {
         <ComparisonProvider>
           <ScrollToTop />
           <AndroidBackButton />
+          <EmailVerificationBanner />
           <Routes>
             {/* ── Public routes ── */}
             <Route path="/" element={<HomePage />} />
@@ -95,6 +98,7 @@ function App() {
             {/* ── Auth & Account routes ── */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/account" element={<AccountPage />} />
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/my-listings" element={<MyListingsPage />} />

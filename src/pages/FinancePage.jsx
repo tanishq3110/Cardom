@@ -20,6 +20,12 @@ import {
   Info,
   BadgePercent,
   Compass,
+  User,
+  Phone,
+  Mail,
+  Loader2,
+  CheckCircle2,
+  Briefcase,
 } from 'lucide-react'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/sections/Footer'
@@ -27,6 +33,8 @@ import { GridPattern } from '@/components/vengeance/GridPattern'
 import { BorderBeam } from '@/components/vengeance/BorderBeam'
 import { ShimmerButton } from '@/components/vengeance/ShimmerButton'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { submitFinanceLead } from '@/services/leadsApi'
 
 // ─── 1. Why Finance With Cardom Features ─────────────────────────────────────
 
@@ -283,6 +291,7 @@ function calculateEMI(carPrice, downPayment, annualRate, tenureYears) {
 
 export function FinancePage() {
   const calculatorRef = useRef(null)
+  const { user, profile } = useAuth()
 
   // Calculator State
   const [carPrice, setCarPrice] = useState(2500000) // ₹25 Lakh default
@@ -290,6 +299,19 @@ export function FinancePage() {
   const [interestRate, setInterestRate] = useState(9.0) // 9.0% default
   const [tenureYears, setTenureYears] = useState(5) // 5 Years default
   const [openFaqIndex, setOpenFaqIndex] = useState(0)
+
+  // Financing Application State
+  const [financeFormOpen, setFinanceFormOpen] = useState(false)
+  const [financeContact, setFinanceContact] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    employmentType: 'Salaried',
+    annualIncome: '',
+  })
+  const [financeLoading, setFinanceLoading] = useState(false)
+  const [financeError, setFinanceError] = useState(null)
+  const [financeSuccess, setFinanceSuccess] = useState(false)
 
   // Scroll to calculator helper
   const scrollToCalculator = () => {
@@ -315,6 +337,36 @@ export function FinancePage() {
   const sampleCalc = useMemo(() => {
     return calculateEMI(1000000, 200000, 9.0, 5)
   }, [])
+
+  const handleFinanceSubmit = async (e) => {
+    e.preventDefault()
+    setFinanceLoading(true)
+    setFinanceError(null)
+
+    const { error } = await submitFinanceLead({
+      carPrice,
+      downPayment,
+      loanAmount: calculation.principal,
+      interestRate,
+      tenureYears,
+      monthlyEmi: calculation.emi,
+      employmentType: financeContact.employmentType || null,
+      annualIncome: financeContact.annualIncome || null,
+      contactName: financeContact.name || profile?.full_name || null,
+      contactPhone: financeContact.phone || profile?.phone || null,
+      contactEmail: financeContact.email || user?.email || null,
+      userId: user?.id || null,
+    })
+
+    setFinanceLoading(false)
+
+    if (error) {
+      setFinanceError(error.message)
+      return
+    }
+
+    setFinanceSuccess(true)
+  }
 
   return (
     <div className="bg-[#080808] min-h-dvh flex flex-col text-white">
@@ -797,6 +849,219 @@ export function FinancePage() {
                 *This is an illustrative sample calculation for demo purposes only and does not represent an offer from Cardom or any affiliated financing partner.
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* ── 6.5 Request Financing Assistance ── */}
+        <section className="py-20 sm:py-28 border-b border-white/[0.06] relative bg-[#060606]">
+          <div className="relative z-10 mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-8">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-orange-400 mb-2 block">
+                Personalized Assistance
+              </span>
+              <h2 className="text-2xl sm:text-4xl font-bold tracking-tight text-white mb-3">
+                Request Financing{' '}
+                <span className="bg-gradient-to-r from-orange-400 to-orange-500 bg-clip-text text-transparent">
+                  Assistance.
+                </span>
+              </h2>
+              <p className="text-xs sm:text-sm text-zinc-400">
+                Share your details and our team will reach out with personalised financing options based on your EMI calculation above.
+              </p>
+            </div>
+
+            {financeSuccess ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="p-8 sm:p-10 rounded-3xl border border-orange-500/30 bg-gradient-to-b from-[#16120d] via-[#0e0e0e] to-[#080808] text-center shadow-2xl relative"
+              >
+                <BorderBeam duration={8} colorFrom="#f97316" colorTo="transparent" />
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/30 text-orange-400 flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle2 className="w-7 h-7 text-orange-400" />
+                </div>
+                <h3 className="text-2xl font-bold text-white mb-2">Request Submitted!</h3>
+                <p className="text-xs sm:text-sm text-zinc-300 max-w-md mx-auto leading-relaxed mb-6">
+                  Our financing team will review your profile and EMI calculation, then reach out within 24 hours.
+                </p>
+                <div className="max-w-xs mx-auto p-4 rounded-2xl border border-white/[0.08] bg-white/[0.02] text-left mb-6 space-y-2 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Loan Amount:</span>
+                    <span className="font-mono font-semibold text-white">₹{calculation.principal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Monthly EMI:</span>
+                    <span className="font-mono font-semibold text-orange-400">₹{calculation.emi.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-500">Tenure:</span>
+                    <span className="text-zinc-300">{tenureYears} Years</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setFinanceSuccess(false); setFinanceFormOpen(false) }}
+                  className="px-6 py-2.5 rounded-lg text-xs font-semibold bg-orange-500 text-white hover:bg-orange-600 transition-colors"
+                >
+                  Submit Another Request
+                </button>
+              </motion.div>
+            ) : (
+              <div className="rounded-3xl border border-white/[0.08] bg-[#0c0c0c] overflow-hidden shadow-2xl">
+                {/* Collapsible Header */}
+                <button
+                  type="button"
+                  onClick={() => setFinanceFormOpen(!financeFormOpen)}
+                  className="w-full p-6 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors"
+                >
+                  <span className="text-sm font-semibold text-white">Apply for Financing Assistance</span>
+                  <ChevronDown
+                    className={cn(
+                      'w-5 h-5 text-orange-400 transition-transform duration-200',
+                      financeFormOpen ? 'rotate-180' : '',
+                    )}
+                  />
+                </button>
+
+                <AnimatePresence initial={false}>
+                  {financeFormOpen && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    >
+                      <form
+                        onSubmit={handleFinanceSubmit}
+                        className="px-6 pb-8 space-y-5 border-t border-white/[0.06]"
+                      >
+                        {/* Current Calculator Summary */}
+                        <div className="mt-6 p-4 rounded-xl border border-white/[0.06] bg-white/[0.02] grid grid-cols-3 gap-3 text-center">
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block">Loan Amount</span>
+                            <span className="text-sm font-bold text-white font-mono">₹{calculation.principal.toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block">Monthly EMI</span>
+                            <span className="text-sm font-bold text-orange-400 font-mono">₹{calculation.emi.toLocaleString()}</span>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-zinc-500 uppercase font-mono block">Tenure</span>
+                            <span className="text-sm font-bold text-white">{tenureYears}Y</span>
+                          </div>
+                        </div>
+
+                        {/* Contact Fields */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div>
+                            <label className="text-xs text-zinc-400 block mb-1.5">
+                              <User className="w-3 h-3 inline mr-1" />
+                              Full Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder={profile?.full_name || 'Full name'}
+                              value={financeContact.name}
+                              onChange={(e) => setFinanceContact({ ...financeContact, name: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-zinc-400 block mb-1.5">
+                              <Phone className="w-3 h-3 inline mr-1" />
+                              Phone Number *
+                            </label>
+                            <input
+                              type="tel"
+                              required
+                              placeholder={profile?.phone || '+91 XXXXX XXXXX'}
+                              value={financeContact.phone}
+                              onChange={(e) => setFinanceContact({ ...financeContact, phone: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-zinc-400 block mb-1.5">
+                              <Mail className="w-3 h-3 inline mr-1" />
+                              Email Address
+                            </label>
+                            <input
+                              type="email"
+                              placeholder={user?.email || 'your@email.com'}
+                              value={financeContact.email}
+                              onChange={(e) => setFinanceContact({ ...financeContact, email: e.target.value })}
+                              className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-zinc-400 block mb-1.5">
+                              <Briefcase className="w-3 h-3 inline mr-1" />
+                              Employment Type
+                            </label>
+                            <select
+                              value={financeContact.employmentType}
+                              onChange={(e) => setFinanceContact({ ...financeContact, employmentType: e.target.value })}
+                              className="w-full px-3 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white focus:outline-none focus:border-orange-500"
+                            >
+                              <option value="Salaried">Salaried</option>
+                              <option value="Self-Employed">Self-Employed</option>
+                              <option value="Business Owner">Business Owner</option>
+                              <option value="Freelancer">Freelancer</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="text-xs text-zinc-400 block mb-1.5">
+                              Annual Income (approx.)
+                            </label>
+                            <select
+                              value={financeContact.annualIncome}
+                              onChange={(e) => setFinanceContact({ ...financeContact, annualIncome: e.target.value })}
+                              className="w-full px-3 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white focus:outline-none focus:border-orange-500"
+                            >
+                              <option value="">Prefer not to say</option>
+                              <option value="Below 3L">Below ₹3 Lakh</option>
+                              <option value="3L–6L">₹3 – 6 Lakh</option>
+                              <option value="6L–12L">₹6 – 12 Lakh</option>
+                              <option value="12L–25L">₹12 – 25 Lakh</option>
+                              <option value="25L–50L">₹25 – 50 Lakh</option>
+                              <option value="Above 50L">Above ₹50 Lakh</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Error Banner */}
+                        {financeError && (
+                          <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+                            {financeError}
+                          </div>
+                        )}
+
+                        <div className="pt-2 flex justify-end">
+                          <ShimmerButton
+                            size="md"
+                            className="w-full sm:w-auto min-w-[200px]"
+                            disabled={financeLoading}
+                          >
+                            {financeLoading ? (
+                              <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                Submitting…
+                              </>
+                            ) : (
+                              <>
+                                Submit Financing Request
+                                <ArrowRight className="w-4 h-4" />
+                              </>
+                            )}
+                          </ShimmerButton>
+                        </div>
+                      </form>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
           </div>
         </section>
 

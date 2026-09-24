@@ -34,7 +34,16 @@ import { Footer } from '@/sections/Footer'
 import { cn } from '@/lib/utils'
 
 export function AccountPage() {
-  const { user, profile, loading, refreshProfile, favoriteIds = [] } = useAuth()
+  const {
+    user,
+    profile,
+    loading,
+    refreshProfile,
+    favoriteIds = [],
+    isEmailVerified,
+    resendVerificationEmail,
+    refreshUser,
+  } = useAuth()
 
   // Form State
   const [fullName, setFullName]     = useState('')
@@ -47,6 +56,33 @@ export function AccountPage() {
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [error, setError]           = useState('')
   const [hasChanges, setHasChanges] = useState(false)
+
+  // Email verification resend state
+  const [resendingEmail, setResendingEmail] = useState(false)
+  const [emailCooldown, setEmailCooldown]   = useState(0)
+  const [emailNotice, setEmailNotice]       = useState('')
+
+  useEffect(() => {
+    if (emailCooldown <= 0) return
+    const timer = setInterval(() => {
+      setEmailCooldown((c) => Math.max(0, c - 1))
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [emailCooldown])
+
+  const handleResendVerification = async () => {
+    if (!user?.email || emailCooldown > 0 || resendingEmail) return
+    setResendingEmail(true)
+    setEmailNotice('')
+    const { error: err } = await resendVerificationEmail(user.email)
+    setResendingEmail(false)
+    if (err) {
+      setEmailNotice(err)
+    } else {
+      setEmailNotice('Verification email sent! Check your inbox.')
+      setEmailCooldown(60)
+    }
+  }
 
   // Sync state when profile or user loads
   useEffect(() => {
@@ -233,10 +269,17 @@ export function AccountPage() {
                     <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight truncate">
                       {fullName || 'Cardom Driver'}
                     </h1>
-                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-orange-500/10 border border-orange-500/30 text-orange-400">
-                      <Sparkles className="w-3 h-3" />
-                      Verified Account
-                    </span>
+                    {isEmailVerified ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Verified Email
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                        <AlertCircle className="w-3 h-3" />
+                        Unverified Email
+                      </span>
+                    )}
                   </div>
 
                   <p className="text-sm text-zinc-400 mt-1 truncate">
@@ -325,7 +368,31 @@ export function AccountPage() {
                       <label htmlFor="email" className="block text-xs font-semibold text-zinc-300">
                         Email Address
                       </label>
-                      <span className="text-[10px] text-zinc-500 font-mono">Managed by Supabase</span>
+                      <div className="flex items-center gap-2">
+                        {isEmailVerified ? (
+                          <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Verified
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[11px] text-amber-400 font-medium flex items-center gap-1">
+                              <AlertCircle className="w-3 h-3" /> Unverified
+                            </span>
+                            <button
+                              type="button"
+                              onClick={handleResendVerification}
+                              disabled={resendingEmail || emailCooldown > 0}
+                              className="text-[11px] text-orange-400 hover:text-orange-300 underline font-medium disabled:opacity-50 transition-colors"
+                            >
+                              {resendingEmail
+                                ? 'Sending…'
+                                : emailCooldown > 0
+                                ? `Resend (${emailCooldown}s)`
+                                : 'Resend Link'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-600">
@@ -339,6 +406,11 @@ export function AccountPage() {
                         className="w-full pl-10 pr-4 py-3 rounded-xl text-sm text-zinc-400 bg-white/[0.02] border border-white/[0.05] cursor-not-allowed outline-none"
                       />
                     </div>
+                    {emailNotice && (
+                      <p className="text-[11px] text-amber-300 mt-1">
+                        {emailNotice}
+                      </p>
+                    )}
                   </div>
 
                   {/* Phone */}

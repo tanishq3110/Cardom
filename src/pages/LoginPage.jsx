@@ -50,16 +50,18 @@ function Field({ label, id, type = 'text', value, onChange, placeholder, error, 
 
 // ─── LoginPage ────────────────────────────────────────────────────────────────
 export function LoginPage() {
-  const { signIn } = useAuth()
+  const { signIn, requestPasswordReset } = useAuth()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const redirectTo = searchParams.get('redirect') || '/'
 
-  const [email, setEmail]     = useState('')
-  const [password, setPassword] = useState('')
-  const [showPw, setShowPw]   = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]     = useState('')
+  const [email, setEmail]           = useState('')
+  const [password, setPassword]     = useState('')
+  const [showPw, setShowPw]         = useState(false)
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
+  const [success, setSuccess]       = useState('')
+  const [isForgotView, setIsForgotView] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -72,6 +74,22 @@ export function LoginPage() {
 
     if (err) return setError(err)
     navigate(redirectTo)
+  }
+
+  const handleForgotSubmit = async (e) => {
+    e.preventDefault()
+    if (!email || !email.trim()) return setError('Please enter your email address.')
+    setError('')
+    setSuccess('')
+    setLoading(true)
+
+    const { error: err } = await requestPasswordReset(email.trim())
+    setLoading(false)
+
+    if (err) {
+      return setError(err)
+    }
+    setSuccess('Password reset link sent! Check your inbox and click the link to reset your password.')
   }
 
   return (
@@ -103,77 +121,182 @@ export function LoginPage() {
               </span>
             </div>
 
-            <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
-            <p className="text-sm text-zinc-400 mb-8">Sign in to your Cardom account</p>
+            {isForgotView ? (
+              <>
+                <h1 className="text-2xl font-bold text-white mb-1">Reset your password</h1>
+                <p className="text-sm text-zinc-400 mb-8">
+                  Enter your email address and we&apos;ll send you a link to reset your password.
+                </p>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-              <Field
-                label="Email address"
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
+                <form onSubmit={handleForgotSubmit} className="space-y-5" noValidate>
+                  <Field
+                    label="Email address"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
 
-              <Field
-                label="Password"
-                id="password"
-                type={showPw ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                rightEl={
+                  {/* Error banner */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/[0.07] border border-red-500/20 text-red-400 text-sm"
+                    >
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
+
+                  {/* Success banner */}
+                  {success && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-emerald-500/[0.1] border border-emerald-500/25 text-emerald-400 text-sm"
+                    >
+                      <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{success}</span>
+                    </motion.div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2',
+                      'px-5 py-3 rounded-xl text-sm font-semibold',
+                      'bg-orange-500 text-white',
+                      'hover:bg-orange-600 transition-all duration-200',
+                      'hover:shadow-[0_0_20px_rgba(249,115,22,0.35)]',
+                      'disabled:opacity-60 disabled:cursor-not-allowed',
+                    )}
+                  >
+                    {loading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin" /> Sending Reset Link…</>
+                    ) : (
+                      <><span>Send Reset Link</span><ArrowRight className="w-4 h-4" /></>
+                    )}
+                  </button>
+
                   <button
                     type="button"
-                    onClick={() => setShowPw((v) => !v)}
-                    className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                    aria-label={showPw ? 'Hide password' : 'Show password'}
+                    onClick={() => {
+                      setIsForgotView(false)
+                      setError('')
+                      setSuccess('')
+                    }}
+                    className="w-full text-center text-sm text-zinc-400 hover:text-white transition-colors pt-2"
                   >
-                    {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    Back to Sign In
                   </button>
-                }
-              />
+                </form>
+              </>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-white mb-1">Welcome back</h1>
+                <p className="text-sm text-zinc-400 mb-8">Sign in to your Cardom account</p>
 
-              {/* Error banner */}
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/[0.07] border border-red-500/20 text-red-400 text-sm"
-                >
-                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <span>{error}</span>
-                </motion.div>
-              )}
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+                  <Field
+                    label="Email address"
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                  />
 
-              <button
-                type="submit"
-                disabled={loading}
-                className={cn(
-                  'w-full flex items-center justify-center gap-2',
-                  'px-5 py-3 rounded-xl text-sm font-semibold',
-                  'bg-orange-500 text-white',
-                  'hover:bg-orange-600 transition-all duration-200',
-                  'hover:shadow-[0_0_20px_rgba(249,115,22,0.35)]',
-                  'disabled:opacity-60 disabled:cursor-not-allowed',
-                )}
-              >
-                {loading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</>
-                  : <><span>Sign In</span><ArrowRight className="w-4 h-4" /></>
-                }
-              </button>
-            </form>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="password" className="block text-xs font-semibold text-zinc-300 tracking-wide">
+                        Password
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotView(true)
+                          setError('')
+                          setSuccess('')
+                        }}
+                        className="text-xs text-orange-400 hover:text-orange-300 font-medium transition-colors"
+                      >
+                        Forgot password?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input
+                        id="password"
+                        type={showPw ? 'text' : 'password'}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="••••••••"
+                        autoComplete="current-password"
+                        className={cn(
+                          'w-full px-4 py-3 rounded-xl text-sm text-white placeholder:text-zinc-600',
+                          'bg-[#111111] border transition-all duration-200 outline-none pr-12',
+                          'focus:ring-1',
+                          error
+                            ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/20'
+                            : 'border-white/[0.08] focus:border-orange-500 focus:ring-orange-500/20',
+                        )}
+                      />
+                      <div className="absolute inset-y-0 right-0 flex items-center pr-3.5">
+                        <button
+                          type="button"
+                          onClick={() => setShowPw((v) => !v)}
+                          className="text-zinc-500 hover:text-zinc-300 transition-colors"
+                          aria-label={showPw ? 'Hide password' : 'Show password'}
+                        >
+                          {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Footer link */}
-            <p className="mt-6 text-center text-sm text-zinc-500">
-              Don&apos;t have an account?{' '}
-              <Link to="/signup" className="text-orange-400 hover:text-orange-300 font-medium transition-colors">
-                Create one
-              </Link>
-            </p>
+                  {/* Error banner */}
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-500/[0.07] border border-red-500/20 text-red-400 text-sm"
+                    >
+                      <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                      <span>{error}</span>
+                    </motion.div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className={cn(
+                      'w-full flex items-center justify-center gap-2',
+                      'px-5 py-3 rounded-xl text-sm font-semibold',
+                      'bg-orange-500 text-white',
+                      'hover:bg-orange-600 transition-all duration-200',
+                      'hover:shadow-[0_0_20px_rgba(249,115,22,0.35)]',
+                      'disabled:opacity-60 disabled:cursor-not-allowed',
+                    )}
+                  >
+                    {loading
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Signing in…</>
+                      : <><span>Sign In</span><ArrowRight className="w-4 h-4" /></>
+                    }
+                  </button>
+                </form>
+
+                {/* Footer link */}
+                <p className="mt-6 text-center text-sm text-zinc-500">
+                  Don&apos;t have an account?{' '}
+                  <Link to="/signup" className="text-orange-400 hover:text-orange-300 font-medium transition-colors">
+                    Create one
+                  </Link>
+                </p>
+              </>
+            )}
           </div>
         </motion.div>
       </main>

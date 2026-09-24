@@ -85,9 +85,12 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       const currentUser = session?.user ?? null
       setUser(currentUser)
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true)
+      }
       if (currentUser) {
         loadProfile(currentUser)
         loadFavorites(currentUser)
@@ -102,6 +105,79 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe()
   }, [loadProfile, loadFavorites, loadUnreadInquiries])
+
+  // ── Password Recovery Flag ──────────────────────────────────────────────────
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
+
+  // ── Email Verification Status ───────────────────────────────────────────────
+  const isEmailVerified = Boolean(user?.email_confirmed_at)
+
+  // ── Refresh User (re-checks email_confirmed_at without full page reload) ───
+  const refreshUser = useCallback(async () => {
+    try {
+      const { data: { user: freshUser }, error } = await supabase.auth.getUser()
+      if (!error && freshUser) {
+        setUser(freshUser)
+        await loadProfile(freshUser)
+        return { user: freshUser, error: null }
+      }
+      return { user: null, error: error ? formatAuthError(error) : null }
+    } catch (err) {
+      return { user: null, error: err.message }
+    }
+  }, [loadProfile])
+
+  // ── Request Password Reset (Forgot Password) ────────────────────────────────
+  const requestPasswordReset = useCallback(async (email) => {
+    if (!email || !email.trim()) {
+      return { error: 'Please enter your email address.' }
+    }
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: redirectUrl,
+      })
+      if (error) return { error: formatAuthError(error) }
+      return { data, error: null }
+    } catch (err) {
+      return { error: formatAuthError(err) }
+    }
+  }, [])
+
+  // ── Update Password (Reset Password) ────────────────────────────────────────
+  const updatePassword = useCallback(async (newPassword) => {
+    if (!newPassword || newPassword.length < 6) {
+      return { error: 'Password must be at least 6 characters long.' }
+    }
+    try {
+      const { data, error } = await supabase.auth.updateUser({
+        password: newPassword,
+      })
+      if (error) return { error: formatAuthError(error) }
+      setIsPasswordRecovery(false)
+      return { data, error: null }
+    } catch (err) {
+      return { error: formatAuthError(err) }
+    }
+  }, [])
+
+  // ── Resend Verification Email ───────────────────────────────────────────────
+  const resendVerificationEmail = useCallback(async (emailOverride) => {
+    const targetEmail = (emailOverride || user?.email || '').trim()
+    if (!targetEmail) {
+      return { error: 'No email address found to send verification.' }
+    }
+    try {
+      const { data, error } = await supabase.auth.resend({
+        type: 'signup',
+        email: targetEmail,
+      })
+      if (error) return { error: formatAuthError(error) }
+      return { data, error: null }
+    } catch (err) {
+      return { error: formatAuthError(err) }
+    }
+  }, [user?.email])
 
   // ── Realtime subscription for inquiries notifications ─────────────────────────
   useEffect(() => {
@@ -208,6 +284,12 @@ export function AuthProvider({ children }) {
         unreadInquiriesCount,
         refreshUnreadInquiries,
         setUnreadInquiriesCount,
+        isEmailVerified,
+        isPasswordRecovery,
+        refreshUser,
+        requestPasswordReset,
+        updatePassword,
+        resendVerificationEmail,
       }}
     >
       {children}
@@ -227,6 +309,8 @@ export function useAuth() {
       loading: false,
       favoriteIds: [],
       unreadInquiriesCount: 0,
+      isEmailVerified: false,
+      isPasswordRecovery: false,
       isCarFavorite: () => false,
       toggleCarFavorite: async () => ({ requireLogin: true }),
       refreshFavorites: async () => {},
@@ -236,6 +320,10 @@ export function useAuth() {
       signIn: async () => ({ error: 'AuthProvider missing' }),
       signOut: async () => {},
       refreshProfile: async () => {},
+      refreshUser: async () => ({ user: null, error: 'AuthProvider missing' }),
+      requestPasswordReset: async () => ({ error: 'AuthProvider missing' }),
+      updatePassword: async () => ({ error: 'AuthProvider missing' }),
+      resendVerificationEmail: async () => ({ error: 'AuthProvider missing' }),
     }
   }
   return ctx

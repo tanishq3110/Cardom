@@ -1,5 +1,17 @@
 {
   "appId": "com.cardom.user",
   "appName": "Cardom User",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "launchAutoHide": true,
+      "backgroundColor": "#080808",
+      "androidScaleType": "CENTER_INSIDE",
+      "showSpinner": false
+    },
+    "SystemBars": {
+      "style": "DARK"
+    }
+  }
 }

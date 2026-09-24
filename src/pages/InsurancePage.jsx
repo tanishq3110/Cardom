@@ -18,6 +18,10 @@ import {
   RotateCcw,
   Check,
   Info,
+  User,
+  Phone,
+  Mail,
+  Loader2,
 } from 'lucide-react'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/sections/Footer'
@@ -25,6 +29,8 @@ import { GridPattern } from '@/components/vengeance/GridPattern'
 import { BorderBeam } from '@/components/vengeance/BorderBeam'
 import { ShimmerButton } from '@/components/vengeance/ShimmerButton'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { submitInsuranceLead } from '@/services/leadsApi'
 
 // ─── 1. Coverage Types ──────────────────────────────────────────────────────
 
@@ -257,6 +263,7 @@ function InsuranceHeroVisual() {
 
 export function InsurancePage() {
   const quoteRef = useRef(null)
+  const { user, profile } = useAuth()
 
   // Quick Quote State
   const [quoteData, setQuoteData] = useState({
@@ -271,15 +278,48 @@ export function InsurancePage() {
   const [selectedPlanModal, setSelectedPlanModal] = useState(null)
   const [openFaqIndex, setOpenFaqIndex] = useState(0)
 
+  // Contact info state — prefilled from profile when authenticated
+  const [contactName, setContactName] = useState('')
+  const [contactPhone, setContactPhone] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+
+  // Lead submission state
+  const [quoteLoading, setQuoteLoading] = useState(false)
+  const [quoteError, setQuoteError] = useState(null)
+
   const scrollToQuote = () => {
     if (quoteRef.current) {
       quoteRef.current.scrollIntoView({ behavior: 'smooth' })
     }
   }
 
-  const handleQuoteSubmit = (e) => {
+  const handleQuoteSubmit = async (e) => {
     e.preventDefault()
     if (!quoteData.brand.trim() || !quoteData.model.trim()) return
+
+    setQuoteLoading(true)
+    setQuoteError(null)
+
+    const { error } = await submitInsuranceLead({
+      carBrand: quoteData.brand,
+      carModel: quoteData.model,
+      registrationYear: quoteData.year,
+      fuelType: quoteData.fuel,
+      city: quoteData.city,
+      previousPolicyStatus: quoteData.previousStatus,
+      contactName: contactName || profile?.full_name || null,
+      contactPhone: contactPhone || profile?.phone || null,
+      contactEmail: contactEmail || user?.email || null,
+      userId: user?.id || null,
+    })
+
+    setQuoteLoading(false)
+
+    if (error) {
+      setQuoteError(error.message)
+      return
+    }
+
     setQuoteReady(true)
     scrollToQuote()
   }
@@ -667,10 +707,78 @@ export function InsurancePage() {
                     </div>
                   </div>
 
-                  <div className="pt-4 border-t border-white/[0.06] flex justify-end">
-                    <ShimmerButton size="md" className="w-full sm:w-auto min-w-[180px]">
-                      Get Estimate
-                      <ArrowRight className="w-4 h-4" />
+                  {/* Contact Information */}
+                  <div className="pt-4 border-t border-white/[0.06]">
+                    <p className="text-[11px] font-mono uppercase tracking-widest text-orange-400 mb-3">
+                      Contact Details (Optional)
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-xs text-zinc-400 block mb-1.5">
+                          <User className="w-3 h-3 inline mr-1" />
+                          Your Name
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={profile?.full_name || 'Full name'}
+                          value={contactName}
+                          onChange={(e) => setContactName(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-zinc-400 block mb-1.5">
+                          <Phone className="w-3 h-3 inline mr-1" />
+                          Phone Number
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder={profile?.phone || '+91 XXXXX XXXXX'}
+                          value={contactPhone}
+                          onChange={(e) => setContactPhone(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-zinc-400 block mb-1.5">
+                          <Mail className="w-3 h-3 inline mr-1" />
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          placeholder={user?.email || 'your@email.com'}
+                          value={contactEmail}
+                          onChange={(e) => setContactEmail(e.target.value)}
+                          className="w-full px-3.5 py-2.5 rounded-lg text-xs bg-black/60 border border-white/10 text-white placeholder:text-zinc-600 focus:outline-none focus:border-orange-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Error Banner */}
+                  {quoteError && (
+                    <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400">
+                      {quoteError}
+                    </div>
+                  )}
+
+                  <div className="pt-2 flex justify-end">
+                    <ShimmerButton
+                      size="md"
+                      className="w-full sm:w-auto min-w-[180px]"
+                      disabled={quoteLoading}
+                    >
+                      {quoteLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Submitting…
+                        </>
+                      ) : (
+                        <>
+                          Get Estimate
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
                     </ShimmerButton>
                   </div>
                 </form>

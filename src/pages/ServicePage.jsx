@@ -29,6 +29,7 @@ import {
   Sliders,
   Star,
   X,
+  Loader2,
 } from 'lucide-react'
 import { Navbar } from '@/components/layout/Navbar'
 import { Footer } from '@/sections/Footer'
@@ -36,6 +37,8 @@ import { GridPattern } from '@/components/vengeance/GridPattern'
 import { BorderBeam } from '@/components/vengeance/BorderBeam'
 import { ShimmerButton } from '@/components/vengeance/ShimmerButton'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/AuthContext'
+import { submitServiceRequest } from '@/services/leadsApi'
 
 // ─── Available Demo Vehicles ──────────────────────────────────────────────────
 const DEMO_VEHICLES = [
@@ -213,6 +216,8 @@ const FAQS = [
 ]
 
 export function ServicePage() {
+  const { user } = useAuth()
+
   // ─── Interactive Booking Cockpit States ────────────────────────────────────
   const [selectedVehicle, setSelectedVehicle] = useState(DEMO_VEHICLES[0])
   const [vehiclePickerOpen, setVehiclePickerOpen] = useState(false)
@@ -232,6 +237,8 @@ export function ServicePage() {
   // Confirmation modal state
   const [bookingConfirmed, setBookingConfirmed] = useState(false)
   const [bookingRefId, setBookingRefId] = useState(null)
+  const [bookingLoading, setBookingLoading] = useState(false)
+  const [bookingError, setBookingError] = useState(null)
 
   // Active FAQ
   const [activeFaq, setActiveFaq] = useState(0)
@@ -257,9 +264,39 @@ export function ServicePage() {
   const tax = Math.round(subtotal * 0.05 * 100) / 100 // 5% tax
   const total = (subtotal + tax).toFixed(2)
 
-  const handleConfirmBooking = () => {
-    const id = 'CDM-SRV-' + Math.floor(100000 + Math.random() * 900000)
-    setBookingRefId(id)
+  const handleConfirmBooking = async () => {
+    setBookingLoading(true)
+    setBookingError(null)
+
+    const selectedPackages = selectedChipIds.map((id) => {
+      const chip = SERVICE_CHIPS.find((c) => c.id === id)
+      return chip ? { id: chip.id, label: chip.label, price: chip.price } : { id }
+    })
+
+    const { data, error } = await submitServiceRequest({
+      vehicleName: selectedVehicle.name,
+      vehicleFuel: selectedVehicle.fuel,
+      servicePackages: selectedPackages,
+      serviceCenterName: selectedCenter.name,
+      serviceCenterCity: selectedCenter.city,
+      scheduledDate: selectedDate,
+      scheduledTime: selectedTime,
+      doorstepValet,
+      baseCost: baseServiceCost,
+      valetFee,
+      taxAmount: tax,
+      totalAmount: parseFloat(total),
+      userId: user?.id || null,
+    })
+
+    setBookingLoading(false)
+
+    if (error) {
+      setBookingError(error.message)
+      return
+    }
+
+    setBookingRefId(data.booking_reference)
     setBookingConfirmed(true)
   }
 
@@ -756,11 +793,27 @@ export function ServicePage() {
                   <button
                     onClick={handleConfirmBooking}
                     type="button"
-                    className="w-full py-4 px-6 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:from-orange-400 hover:to-amber-400 transition-all duration-300 shadow-[0_0_25px_rgba(249,115,22,0.5)] hover:shadow-[0_0_35px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2 group cursor-pointer"
+                    disabled={bookingLoading}
+                    className="w-full py-4 px-6 rounded-xl font-bold text-sm tracking-wide bg-gradient-to-r from-orange-500 to-amber-500 text-black hover:from-orange-400 hover:to-amber-400 transition-all duration-300 shadow-[0_0_25px_rgba(249,115,22,0.5)] hover:shadow-[0_0_35px_rgba(249,115,22,0.7)] flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <span>Confirm Service Booking</span>
-                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                    {bookingLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Confirming…</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Confirm Service Booking</span>
+                        <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                      </>
+                    )}
                   </button>
+
+                  {bookingError && (
+                    <div className="p-3 rounded-lg border border-red-500/30 bg-red-500/10 text-xs text-red-400 text-center">
+                      {bookingError}
+                    </div>
+                  )}
 
                   <div className="flex items-center justify-center gap-4 text-[11px] text-zinc-400">
                     <span className="flex items-center gap-1">
