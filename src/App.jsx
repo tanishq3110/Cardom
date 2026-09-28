@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-ro
 import { Capacitor } from '@capacitor/core'
 import { App as CapApp } from '@capacitor/app'
 import { AuthProvider } from '@/context/AuthContext'
+import { PartnerAuthProvider } from '@/context/PartnerAuthContext'
 import { ComparisonProvider } from '@/context/ComparisonContext'
 import { FloatingCompareBar } from '@/components/common/FloatingCompareBar'
 import { HomePage } from '@/pages/HomePage'
@@ -31,6 +32,14 @@ import { MyListingsPage } from '@/pages/MyListingsPage'
 import { EditCarPage } from '@/pages/EditCarPage'
 import { MyInquiriesPage } from '@/pages/MyInquiriesPage'
 import { EmailVerificationBanner } from '@/components/common/EmailVerificationBanner'
+// ── Partner App ──────────────────────────────────────────────────────────────
+import { PartnerLogin } from '@/pages/partner/PartnerLogin'
+import { PartnerSignup } from '@/pages/partner/PartnerSignup'
+import { PartnerDashboard } from '@/pages/partner/PartnerDashboard'
+import { PartnerLeads } from '@/pages/partner/PartnerLeads'
+import { PartnerServices } from '@/pages/partner/PartnerServices'
+import { PartnerProfile } from '@/pages/partner/PartnerProfile'
+import { PartnerSettings } from '@/pages/partner/PartnerSettings'
 
 /**
  * ScrollToTop helper — ensures navigating to a new route scrolls to the top.
@@ -69,7 +78,7 @@ function AndroidBackButton() {
 function App() {
   return (
     <BrowserRouter>
-      {/* AuthProvider wraps the entire app so all components can access auth state */}
+      {/* ── User App ─────────────────────────────────────────────────────── */}
       <AuthProvider>
         <ComparisonProvider>
           <ScrollToTop />
@@ -104,6 +113,22 @@ function App() {
             <Route path="/my-listings" element={<MyListingsPage />} />
             <Route path="/my-listings/:id/edit" element={<EditCarPage />} />
             <Route path="/my-inquiries" element={<MyInquiriesPage />} />
+
+            {/* ── Partner App (/partner/*) ─────────────────────────────── */}
+            <Route path="/partner/*" element={
+              <PartnerAuthProvider>
+                <Routes>
+                  <Route path="login" element={<PartnerLogin />} />
+                  <Route path="signup" element={<PartnerSignup />} />
+                  <Route path="dashboard" element={<PartnerDashboard />} />
+                  <Route path="leads" element={<PartnerLeads />} />
+                  <Route path="services" element={<PartnerServices />} />
+                  <Route path="profile" element={<PartnerProfile />} />
+                  <Route path="settings" element={<PartnerSettings />} />
+                  <Route path="" element={<PartnerLogin />} />
+                </Routes>
+              </PartnerAuthProvider>
+            } />
           </Routes>
           <FloatingCompareBar />
         </ComparisonProvider>
