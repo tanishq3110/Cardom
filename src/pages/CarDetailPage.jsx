@@ -406,7 +406,7 @@ export function CarDetailPage() {
     <div className="bg-[#080808] min-h-dvh flex flex-col text-white">
       <Navbar />
 
-      <main className="flex-1 pt-24 pb-20">
+      <main className="flex-1 pt-20 sm:pt-24 pb-28 sm:pb-20">
         <GridPattern
           squareSize={40}
           strokeWidth={0.2}
@@ -902,6 +902,59 @@ export function CarDetailPage() {
             </div>
           )}
         </div>
+
+        {/* Mobile Fixed Bottom Action Bar */}
+        {car && (
+          <div className="fixed bottom-0 inset-x-0 bg-[#121212]/95 backdrop-blur-md border-t border-[#2A2A2A] p-3 px-4 z-40 lg:hidden flex items-center justify-between gap-3 pb-safe-nav">
+            <div className="flex-1 min-w-0">
+              <span className="text-[10px] text-zinc-400 font-mono uppercase tracking-wider block">Total Price</span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-black text-white">{formatPrice(car.price)}</span>
+                {car.price && (
+                  <span className="text-[10px] text-orange-400 font-mono">
+                    EMI ~₹{Math.round(car.price * 0.018).toLocaleString('en-IN')}/mo
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isOwner ? (
+                <Link
+                  to={`/my-listings/${car.id}/edit`}
+                  className="px-4 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-orange-500/25"
+                >
+                  <Edit className="w-3.5 h-3.5" />
+                  Edit
+                </Link>
+              ) : isSold ? (
+                <span className="px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-500 text-xs font-bold uppercase tracking-wider">
+                  Sold Out
+                </span>
+              ) : (
+                <>
+                  {sellerProfile?.phone && (
+                    <a
+                      href={`tel:${sellerProfile.phone}`}
+                      className="p-2.5 rounded-xl bg-[#202020] border border-[#2A2A2A] text-zinc-300 hover:text-white"
+                      aria-label="Call seller"
+                    >
+                      <Phone className="w-4 h-4 text-green-400" />
+                    </a>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleOpenContactModal}
+                    className="px-5 py-2.5 rounded-xl bg-orange-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-orange-500/30 cursor-pointer active:scale-95 transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Contact Seller
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* ── Contact Seller Modal ── */}
@@ -1288,6 +1341,25 @@ export function CarDetailPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* ── Mobile Bottom Sticky Action Bar ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 sm:hidden bg-[#0d0d0d]/95 backdrop-blur-2xl border-t border-white/[0.08] p-3 pb-[max(env(safe-area-inset-bottom,0px),12px)] flex items-center gap-2.5 shadow-2xl">
+        <a
+          href={sellerProfile?.phone ? `tel:${sellerProfile.phone}` : 'tel:+919876543210'}
+          className="flex-1 py-3 rounded-xl border border-white/[0.12] bg-[#1a1a1a] text-zinc-200 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-white/[0.08] transition-colors"
+        >
+          <Phone className="w-4 h-4 text-emerald-400" />
+          Call
+        </a>
+        <button
+          type="button"
+          onClick={handleOpenContactModal}
+          className="flex-[1.5] py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/25 transition-all cursor-pointer"
+        >
+          <MessageSquare className="w-4 h-4" />
+          Message / Inquire
+        </button>
+      </div>
 
       <Footer />
     </div>

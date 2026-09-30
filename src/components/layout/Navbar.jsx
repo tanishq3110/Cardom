@@ -1,10 +1,55 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Menu, X, ChevronDown, Zap, Car, LogOut, User, Heart, MessageSquare, ArrowLeftRight } from 'lucide-react'
+import {
+  Menu,
+  X,
+  ChevronDown,
+  Zap,
+  Car,
+  LogOut,
+  User,
+  Heart,
+  MessageSquare,
+  ArrowLeftRight,
+  ArrowLeft,
+  Plus,
+  Bell,
+  Search,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useComparison } from '@/context/ComparisonContext'
 import { cn } from '@/lib/utils'
+
+function getMobilePageTitle(pathname) {
+  if (pathname === '/cars') return 'Marketplace'
+  if (pathname.startsWith('/cars/')) return 'Vehicle Details'
+  if (pathname === '/sell') return 'List Your Vehicle'
+  if (pathname === '/my-listings') return 'My Listings'
+  if (pathname.includes('/edit')) return 'Edit Listing'
+  if (pathname === '/favorites') return 'Saved Vehicles'
+  if (pathname === '/compare') return 'Compare Vehicles'
+  if (pathname === '/service') return 'Services & Repairs'
+  if (pathname === '/insurance') return 'Car Insurance'
+  if (pathname === '/finance') return 'Auto Finance & EMI'
+  if (pathname === '/subscription') return 'Car Subscription'
+  if (pathname === '/roadside') return 'Roadside Assist'
+  if (pathname === '/parts') return 'Spare Parts'
+  if (pathname === '/bookings') return 'My Bookings'
+  if (pathname === '/ride' || pathname === '/ride-booking') return 'Ride Booking'
+  if (pathname === '/account' || pathname === '/profile') return 'My Account'
+  if (pathname === '/my-inquiries') return 'Inquiries'
+  if (pathname === '/about') return 'About Cardom'
+  if (pathname === '/how-it-works') return 'How It Works'
+  if (pathname === '/contact') return 'Help & Support'
+  if (pathname === '/terms') return 'Terms of Service'
+  if (pathname === '/privacy') return 'Privacy Policy'
+  if (pathname === '/cookies') return 'Cookie Policy'
+  if (pathname === '/login') return 'Sign In'
+  if (pathname === '/signup') return 'Create Account'
+  if (pathname === '/reset-password') return 'Reset Password'
+  return 'Cardom'
+}
 
 // ─── Navigation config ──────────────────────────────────────────────────────
 const NAV_LINKS = [
@@ -28,21 +73,6 @@ const NAV_LINKS = [
   { label: 'Contact', href: '/contact' },
 ]
 
-// ─── Animation variants ──────────────────────────────────────────────────────
-const mobileMenuVariants = {
-  hidden: { opacity: 0, height: 0 },
-  visible: {
-    opacity: 1,
-    height: 'auto',
-    transition: { duration: 0.28, ease: [0.22, 1, 0.36, 1] },
-  },
-  exit: {
-    opacity: 0,
-    height: 0,
-    transition: { duration: 0.2, ease: 'easeIn' },
-  },
-}
-
 const dropdownVariants = {
   hidden:  { opacity: 0, y: 6, scale: 0.97 },
   visible: { opacity: 1, y: 0, scale: 1,
@@ -53,15 +83,13 @@ const dropdownVariants = {
   },
 }
 
-// ─── Navbar ──────────────────────────────────────────────────────────────────
 export function Navbar() {
+  const { pathname } = useLocation()
   const { user, profile, loading: authLoading, signOut, unreadInquiriesCount = 0 } = useAuth()
   const { compareCount = 0 } = useComparison()
   const navigate = useNavigate()
   const [scrolled,       setScrolled]       = useState(false)
-  const [mobileOpen,     setMobileOpen]     = useState(false)
   const [activeDropdown, setActiveDropdown] = useState(null)
-  const [mobileExpanded, setMobileExpanded] = useState(null)
   const [userMenuOpen,   setUserMenuOpen]   = useState(false)
   const closeTimer = useRef(null)
   const userMenuRef = useRef(null)
@@ -84,18 +112,6 @@ export function Navbar() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
-  // Close mobile menu on resize to desktop
-  useEffect(() => {
-    const onResize = () => {
-      if (window.innerWidth >= 1024) {
-        setMobileOpen(false)
-        setMobileExpanded(null)
-      }
-    }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
-  }, [])
-
   // Dropdown hover helpers with a short close delay (prevents flickering)
   const openDropdown  = (label) => {
     clearTimeout(closeTimer.current)
@@ -110,12 +126,108 @@ export function Navbar() {
       className={cn(
         'fixed top-0 left-0 right-0 z-50 transition-all duration-300',
         scrolled
-          ? 'bg-[#080808]/85 backdrop-blur-2xl border-b border-white/[0.06] shadow-[0_1px_24px_rgba(0,0,0,0.5)]'
-          : 'bg-transparent',
+          ? 'bg-[#080808]/90 backdrop-blur-2xl border-b border-white/[0.08] shadow-[0_2px_24px_rgba(0,0,0,0.6)]'
+          : 'bg-[#080808]/75 backdrop-blur-xl border-b border-white/[0.04]',
       )}
     >
       <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 lg:h-[70px]">
+        {/* ── Native Mobile App Header (lg:hidden) ── */}
+        <div className="flex lg:hidden items-center justify-between h-14 w-full">
+          {pathname === '/' ? (
+            <div className="flex items-center justify-between w-full">
+              <Link to="/" className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center shadow-[0_0_12px_rgba(249,115,22,0.4)]">
+                  <Zap className="w-3.5 h-3.5 text-white fill-white" strokeWidth={0} />
+                </div>
+                <span className="text-white font-bold text-base tracking-tight">
+                  Card<span className="text-orange-500">om</span>
+                </span>
+              </Link>
+
+              <div className="flex items-center gap-2">
+                {compareCount > 0 && (
+                  <Link
+                    to="/compare"
+                    className="relative p-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-orange-400"
+                    aria-label="Compare"
+                  >
+                    <ArrowLeftRight className="w-4 h-4" />
+                    <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
+                      {compareCount}
+                    </span>
+                  </Link>
+                )}
+                <Link
+                  to="/account"
+                  className="relative p-2 rounded-xl bg-white/[0.05] border border-white/[0.08] text-zinc-300 hover:text-white"
+                  aria-label="Profile"
+                >
+                  <User className="w-4 h-4" />
+                  {unreadInquiriesCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-[#080808]" />
+                  )}
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  if (window.history.length > 1) {
+                    navigate(-1)
+                  } else {
+                    navigate('/')
+                  }
+                }}
+                className="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-300 active:scale-95 transition-transform cursor-pointer"
+                aria-label="Go Back"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+
+              <h1 className="text-sm font-bold text-white tracking-wide truncate max-w-[210px] text-center">
+                {getMobilePageTitle(pathname)}
+              </h1>
+
+              <div className="flex items-center gap-1.5 min-w-[32px] justify-end">
+                {pathname === '/cars' ? (
+                  <Link
+                    to="/compare"
+                    className="relative w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-300"
+                    aria-label="Compare"
+                  >
+                    <ArrowLeftRight className="w-4 h-4 text-orange-400" />
+                    {compareCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-orange-500 text-white text-[9px] font-bold flex items-center justify-center">
+                        {compareCount}
+                      </span>
+                    )}
+                  </Link>
+                ) : pathname === '/my-listings' ? (
+                  <Link
+                    to="/sell"
+                    className="w-8 h-8 rounded-xl bg-orange-500 text-white flex items-center justify-center shadow-md shadow-orange-500/30 active:scale-95"
+                    aria-label="Add Listing"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </Link>
+                ) : (
+                  <Link
+                    to="/account"
+                    className="w-8 h-8 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-zinc-400 hover:text-white"
+                    aria-label="Account"
+                  >
+                    <User className="w-4 h-4" />
+                  </Link>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Desktop Navigation Bar (hidden lg:flex) ── */}
+        <div className="hidden lg:flex items-center justify-between h-[70px]">
 
           {/* ── Logo ── */}
           <a href="/" className="flex items-center gap-2.5 group flex-shrink-0">
@@ -370,248 +482,8 @@ export function Navbar() {
               </>
             )}
           </div>
-
-          {/* ── Mobile hamburger ── */}
-          <button
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-            onClick={() => setMobileOpen(!mobileOpen)}
-            className={cn(
-              'relative lg:hidden p-2 rounded-lg',
-              'text-zinc-400 hover:text-white',
-              'hover:bg-white/[0.06] transition-all duration-200',
-            )}
-          >
-            {unreadInquiriesCount > 0 && !mobileOpen && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-[#080808]" />
-            )}
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={mobileOpen ? 'close' : 'open'}
-                initial={{ rotate: -90, opacity: 0 }}
-                animate={{ rotate: 0,   opacity: 1 }}
-                exit={{ rotate: 90,  opacity: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </motion.div>
-            </AnimatePresence>
-          </button>
         </div>
       </nav>
-
-      {/* ── Mobile menu ── */}
-      <AnimatePresence>
-        {mobileOpen && (
-          <motion.div
-            variants={mobileMenuVariants}
-            initial="hidden" animate="visible" exit="exit"
-            className={cn(
-              'lg:hidden overflow-hidden',
-              'bg-[#080808]/95 backdrop-blur-2xl',
-              'border-b border-white/[0.06]',
-            )}
-          >
-            <div className="px-4 pb-6 pt-2 space-y-0.5 max-h-[calc(100dvh-70px)] overflow-y-auto">
-              {NAV_LINKS.map((link) => (
-                <div key={link.label}>
-                  {link.children ? (
-                    <>
-                      <button
-                        onClick={() =>
-                          setMobileExpanded(mobileExpanded === link.label ? null : link.label)
-                        }
-                        className={cn(
-                          'flex items-center justify-between w-full',
-                          'px-3 py-2.5 rounded-lg text-sm font-medium',
-                          'text-zinc-300 hover:text-white hover:bg-white/[0.05] transition-colors',
-                        )}
-                      >
-                        {link.label}
-                        <ChevronDown
-                          className={cn(
-                            'w-4 h-4 opacity-50 transition-transform duration-200',
-                            mobileExpanded === link.label && 'rotate-180 opacity-80',
-                          )}
-                        />
-                      </button>
-                      <AnimatePresence>
-                        {mobileExpanded === link.label && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="overflow-hidden ml-3 mt-0.5 space-y-0.5 border-l border-white/[0.06] pl-3"
-                          >
-                            {link.children.map((child) => (
-                              <a
-                                key={child.label}
-                                href={child.href}
-                                className={cn(
-                                  'flex flex-col px-2 py-2 rounded-lg',
-                                  'text-zinc-500 hover:text-zinc-200 transition-colors',
-                                )}
-                              >
-                                <span className="text-sm">{child.label}</span>
-                                <span className="text-xs text-zinc-700">{child.desc}</span>
-                              </a>
-                            ))}
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </>
-                  ) : (
-                    <a
-                      href={link.href}
-                      className={cn(
-                        'flex items-center px-3 py-2.5 rounded-lg text-sm font-medium',
-                        'text-zinc-300 hover:text-white hover:bg-white/[0.05] transition-colors',
-                      )}
-                    >
-                      {link.label}
-                    </a>
-                  )}
-                </div>
-              ))}
-
-              {/* Mobile Auth CTAs */}
-              <div className="pt-4 mt-2 border-t border-white/[0.06] flex flex-col gap-2">
-                {user ? (
-                  <>
-                    <div className="flex items-center gap-2.5 px-3 py-2">
-                      <div className="w-8 h-8 rounded-full bg-orange-500/20 border border-orange-500/30 flex items-center justify-center">
-                        <User className="w-4 h-4 text-orange-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          {profile?.full_name || user.user_metadata?.full_name || user.email?.split('@')[0]}
-                        </p>
-                        <p className="text-xs text-zinc-500 truncate">{user.email}</p>
-                      </div>
-                    </div>
-                    <Link
-                      to="/account"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <User className="w-4 h-4 text-orange-400" />
-                      My Account
-                    </Link>
-                    <Link
-                      to="/my-listings"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <Car className="w-4 h-4 text-orange-400" />
-                      My Listings
-                    </Link>
-                    <Link
-                      to="/favorites"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <Heart className="w-4 h-4 text-red-400" />
-                      Saved Cars
-                    </Link>
-                    <Link
-                      to="/compare"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <ArrowLeftRight className="w-4 h-4 text-orange-400" />
-                      <span>Compare Cars</span>
-                      {compareCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold leading-none">
-                          {compareCount}
-                        </span>
-                      )}
-                    </Link>
-                    <Link
-                      to="/my-inquiries"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <MessageSquare className="w-4 h-4 text-orange-400" />
-                      <span>Inquiries</span>
-                      {unreadInquiriesCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-orange-500 text-white text-[10px] font-bold leading-none">
-                          {unreadInquiriesCount}
-                        </span>
-                      )}
-                    </Link>
-                    <button
-                      onClick={async () => {
-                        setMobileOpen(false)
-                        await signOut()
-                        navigate('/')
-                      }}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'border border-red-500/20 text-red-400 hover:bg-red-500/[0.05] transition-colors',
-                      )}
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Sign Out
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <Link
-                      to="/compare"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold',
-                        'bg-white/[0.05] border border-white/[0.08] text-white hover:bg-white/[0.1] transition-colors',
-                      )}
-                    >
-                      <ArrowLeftRight className="w-4 h-4 text-orange-400" />
-                      <span>Compare Cars</span>
-                      {compareCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[10px] font-bold leading-none">
-                          {compareCount}
-                        </span>
-                      )}
-                    </Link>
-                    <Link
-                      to="/login"
-                      onClick={() => setMobileOpen(false)}
-                      className="px-3 py-2.5 text-sm font-medium text-zinc-400 hover:text-white transition-colors text-center"
-                    >
-                      Sign In
-                    </Link>
-                    <Link
-                      to="/signup"
-                      onClick={() => setMobileOpen(false)}
-                      className={cn(
-                        'px-4 py-2.5 rounded-lg text-sm font-semibold text-center',
-                        'bg-orange-500 text-white hover:bg-orange-600 transition-colors',
-                      )}
-                    >
-                      Get Started
-                    </Link>
-                  </>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </header>
   )
 }

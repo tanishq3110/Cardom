@@ -260,3 +260,22 @@ export async function submitServiceRequest({
   }
 }
 
+/**
+ * Fetches service requests for an authenticated user.
+ */
+export async function fetchUserServiceRequests(userId) {
+  if (!userId) return { data: [], error: null }
+  try {
+    const { data, error } = await supabase
+      .from('service_requests')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+    return { data: data || [], error }
+  } catch (err) {
+    console.warn('[Cardom Leads] fetchUserServiceRequests error:', err)
+    return { data: [], error: err }
+  }
+}
+
+
