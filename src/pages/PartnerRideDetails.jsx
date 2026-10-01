@@ -4,7 +4,8 @@ import { PartnerLayout } from '@/components/PartnerLayout'
 import {
   Navigation, Car, MapPin, ArrowLeft, Loader2,
   AlertCircle, CheckCircle, Phone, User,
-  Hash, CreditCard, Clock, Compass, ShieldAlert,
+  Hash, CreditCard, Clock, ShieldAlert,
+  QrCode, Banknote, ShieldCheck, X, Eye,
 } from 'lucide-react'
 import {
   getRideById,
@@ -17,6 +18,9 @@ import {
   stopDriverLocationTracking,
   checkAndRequestLocationPermission,
 } from '@/services/partnerLocationApi'
+import { confirmPartnerPayment } from '@/services/partnerPaymentApi'
+import { getPartnerProfile } from '@/services/partnerProfileApi'
+import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
 import { RideMap } from '@/components/map/RideMap'
 import { calculateDistanceKm, formatDistance, calculateEta } from '@/utils/geoUtils'
 
@@ -77,6 +81,12 @@ export function PartnerRideDetails() {
   const [driverCoords, setDriverCoords] = useState(null)
   const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
 
+  // Payment states
+  const [confirmingPayment, setConfirmingPayment] = useState(false)
+  const [paymentActionError, setPaymentActionError] = useState(null)
+  const [partnerUpi, setPartnerUpi] = useState({ upi_id: null, upi_qr_url: null })
+  const [qrModal, setQrModal] = useState(null) // { src: string, title: string, subtitle: string }
+
   const unsubscribeRef = useRef(null)
 
   const loadRide = useCallback(async () => {
@@ -95,6 +105,16 @@ export function PartnerRideDetails() {
 
   useEffect(() => {
     loadRide()
+
+    // Fetch partner UPI details
+    getPartnerProfile().then(({ data }) => {
+      if (data) {
+        setPartnerUpi({
+          upi_id: data.upi_id,
+          upi_qr_url: data.upi_qr_url,
+        })
+      }
+    })
 
     // Realtime subscription for the active ride
     unsubscribeRef.current = subscribeToRideDetails(id, (updatedBooking) => {
@@ -128,7 +148,8 @@ export function PartnerRideDetails() {
           if (!prev) return data
           if (
             prev.partner_status !== data.partner_status ||
-            prev.ride_bookings?.status !== data.ride_bookings?.status
+            prev.ride_bookings?.status !== data.ride_bookings?.status ||
+            prev.ride_bookings?.payment_status !== data.ride_bookings?.payment_status
           ) {
             return data
           }
@@ -214,6 +235,51 @@ export function PartnerRideDetails() {
     setActionLoading(false)
   }
 
+  const handleConfirmPayment = async () => {
+    setConfirmingPayment(true)
+    setPaymentActionError(null)
+    const result = await confirmPartnerPayment(id)
+    if (result.error) {
+      setPaymentActionError(result.error)
+    } else {
+      await loadRide()
+    }
+    setConfirmingPayment(false)
+  }
+
+  const handleViewQr = async () => {
+    const ride = assignment?.ride_bookings
+    const finalFare = ride?.final_fare || ride?.estimated_fare || 0
+
+    if (partnerUpi.upi_qr_url) {
+      setQrModal({
+        src: partnerUpi.upi_qr_url,
+        title: 'Driver Custom QR',
+        subtitle: `UPI ID: ${partnerUpi.upi_id || 'Apex Motor Works'} • Amount: ₹${finalFare}`,
+      })
+      return
+    }
+
+    if (partnerUpi.upi_id) {
+      const uri = buildUpiUri({
+        upiId: partnerUpi.upi_id,
+        payeeName: ride?.driver_name || 'Cardom Driver',
+        amount: finalFare,
+        note: `Cardom Ride ${ride?.booking_reference || ''}`,
+      })
+      const qrData = await generateQrDataUrl(uri)
+      if (qrData) {
+        setQrModal({
+          src: qrData,
+          title: 'Direct UPI Payment QR',
+          subtitle: `Scan to pay ₹${finalFare} to ${partnerUpi.upi_id}`,
+        })
+      }
+    } else {
+      setPaymentActionError('Please configure your UPI ID in Profile to view QR code.')
+    }
+  }
+
   const ride = assignment?.ride_bookings
   const partnerStatus = assignment?.partner_status
 
@@ -246,6 +312,11 @@ export function PartnerRideDetails() {
       }
     }
   }
+
+  const finalFare = Number(ride?.final_fare || ride?.estimated_fare || 0)
+  const isPaid = ride?.payment_status === 'confirmed' || ride?.payment_status === 'paid'
+  const isCustomerMarked = ride?.payment_status === 'customer_marked_paid'
+  const paymentMethod = ride?.payment_method?.toLowerCase() === 'cash' ? 'cash' : 'upi'
 
   return (
     <PartnerLayout title="Ride Details" subtitle="Live tracking and operations">
@@ -362,9 +433,11 @@ export function PartnerRideDetails() {
               </div>
 
               <div className="flex items-center justify-between pt-3 border-t border-[#2A2A2A]">
-                <span className="text-xs text-[#A1A1AA]">Estimated Fare</span>
+                <span className="text-xs text-[#A1A1AA]">
+                  {partnerStatus === 'completed' ? 'Final Fare' : 'Estimated Fare'}
+                </span>
                 <span className="text-xl font-black text-orange-400">
-                  ₹{Number(ride.estimated_fare || 0).toLocaleString('en-IN')}
+                  ₹{finalFare.toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -401,13 +474,112 @@ export function PartnerRideDetails() {
               </button>
             )}
 
+            {/* ── Phase 5: Payment Settlement Card (When Ride is Completed) ── */}
             {partnerStatus === 'completed' && (
-              <div className="p-5 rounded-2xl border border-green-500/25 bg-green-500/10 flex items-center gap-3">
-                <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-green-400">Ride Completed</p>
-                  <p className="text-xs text-green-300/70 mt-0.5">This ride has been successfully completed. GPS tracking stopped.</p>
+              <div className="bg-[#181818] border border-orange-500/30 rounded-2xl p-5 space-y-4 shadow-xl">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-mono uppercase tracking-wider text-[#A1A1AA]">Payment Settlement</p>
+                      {isPaid ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-500/15 text-green-400 border border-green-500/30">
+                          Confirmed
+                        </span>
+                      ) : isCustomerMarked ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/15 text-cyan-400 border border-cyan-500/30 animate-pulse">
+                          Customer Marked Paid
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-yellow-500/15 text-yellow-400 border border-yellow-500/30">
+                          Pending
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-2xl font-black text-white mt-1">₹{finalFare.toLocaleString('en-IN')}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#222] border border-[#333] text-xs font-semibold text-white">
+                    {paymentMethod === 'cash' ? (
+                      <><Banknote className="w-4 h-4 text-emerald-400" />Cash</>
+                    ) : (
+                      <><QrCode className="w-4 h-4 text-orange-400" />UPI</>
+                    )}
+                  </div>
                 </div>
+
+                {/* Status Notice */}
+                {isPaid ? (
+                  <div className="p-4 rounded-xl bg-green-500/10 border border-green-500/25 flex items-center gap-3">
+                    <ShieldCheck className="w-6 h-6 text-green-400 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-green-400">Payment Confirmed</p>
+                      <p className="text-[11px] text-green-300/80 mt-0.5">
+                        ₹{finalFare} collected via {paymentMethod.toUpperCase()}. Transaction recorded.
+                      </p>
+                    </div>
+                  </div>
+                ) : isCustomerMarked ? (
+                  <div className="p-4 rounded-xl bg-cyan-500/10 border border-cyan-500/25 flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-cyan-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-cyan-300">Customer marked payment as PAID</p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">
+                        {paymentMethod === 'upi'
+                          ? 'Please verify the ₹' + finalFare + ' credit in your UPI/Bank app (GPay/PhonePe/Paytm) before confirming.'
+                          : 'Please confirm that you have collected ₹' + finalFare + ' in cash from the passenger.'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/25 flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-yellow-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-xs font-bold text-yellow-300">Awaiting Customer Payment</p>
+                      <p className="text-[11px] text-zinc-300 mt-0.5">
+                        Customer will pay ₹{finalFare} via {paymentMethod.toUpperCase()}.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {paymentActionError && (
+                  <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>{paymentActionError}</span>
+                  </div>
+                )}
+
+                {/* Operational Buttons */}
+                {!isPaid && (
+                  <div className="space-y-2 pt-1">
+                    {paymentMethod === 'upi' && (
+                      <button
+                        type="button"
+                        onClick={handleViewQr}
+                        className="w-full py-3 rounded-xl bg-[#242424] hover:bg-[#2C2C2C] border border-[#3A3A3A] text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition-colors"
+                      >
+                        <Eye className="w-4 h-4 text-orange-400" />
+                        View Driver QR Code
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleConfirmPayment}
+                      disabled={confirmingPayment}
+                      className="w-full py-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 transition-colors shadow-lg shadow-green-600/20 active:scale-[0.98]"
+                    >
+                      {confirmingPayment ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="w-5 h-5" />
+                          {paymentMethod === 'cash' ? 'Confirm Cash Received' : 'Confirm Payment Received'}
+                        </>
+                      )}
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -416,7 +588,7 @@ export function PartnerRideDetails() {
                 <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-bold text-red-400">Ride Cancelled</p>
-                  <p className="text-xs text-red-300/70 mt-0.5">This ride assignment was cancelled.</p>
+                  <p className="text-xs text-red-300/70 mt-0.5">This ride assignment was cancelled. No payment required.</p>
                 </div>
               </div>
             )}
@@ -426,19 +598,19 @@ export function PartnerRideDetails() {
               <p className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider py-3 border-b border-[#2A2A2A]">
                 Ride Information
               </p>
-              <InfoRow icon={Hash}      label="Booking Reference"    value={ride.booking_reference} />
-              <InfoRow icon={Car}       label="Ride Type"            value={RIDE_TYPE_LABELS[ride.ride_type]} />
-              <InfoRow icon={MapPin}    label="Distance (Estimate)"  value={ride.estimated_distance_km ? `${ride.estimated_distance_km} km` : null} />
-              <InfoRow icon={CreditCard} label="Payment Method"      value={ride.payment_method?.toUpperCase()} />
-              <InfoRow icon={Clock}     label="Requested At"         value={formatDate(ride.created_at)} />
+              <InfoRow icon={Hash}       label="Booking Reference"    value={ride.booking_reference} />
+              <InfoRow icon={Car}        label="Ride Type"            value={RIDE_TYPE_LABELS[ride.ride_type]} />
+              <InfoRow icon={MapPin}     label="Distance (Estimate)"  value={ride.estimated_distance_km ? `${ride.estimated_distance_km} km` : null} />
+              <InfoRow icon={CreditCard} label="Payment Method"       value={ride.payment_method?.toUpperCase()} />
+              <InfoRow icon={Clock}      label="Requested At"         value={formatDate(ride.created_at)} />
               {assignment.accepted_at && (
-                <InfoRow icon={Clock}   label="Accepted At"          value={formatDate(assignment.accepted_at)} />
+                <InfoRow icon={Clock}    label="Accepted At"          value={formatDate(assignment.accepted_at)} />
               )}
               {assignment.started_at && (
-                <InfoRow icon={Clock}   label="Started At"           value={formatDate(assignment.started_at)} />
+                <InfoRow icon={Clock}    label="Started At"           value={formatDate(assignment.started_at)} />
               )}
               {assignment.completed_at && (
-                <InfoRow icon={Clock}   label="Completed At"         value={formatDate(assignment.completed_at)} />
+                <InfoRow icon={Clock}    label="Completed At"         value={formatDate(assignment.completed_at)} />
               )}
             </div>
 
@@ -455,6 +627,46 @@ export function PartnerRideDetails() {
           </>
         )}
       </div>
+
+      {/* QR Code Modal for Partner */}
+      {qrModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setQrModal(null)}
+        >
+          <div
+            className="bg-[#181818] border border-[#2A2A2A] rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#2A2A2A]">
+              <h3 className="text-sm font-bold text-white">{qrModal.title}</h3>
+              <button
+                onClick={() => setQrModal(null)}
+                className="w-7 h-7 rounded-full bg-[#242424] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl inline-block shadow-inner">
+              <img
+                src={qrModal.src}
+                alt="UPI QR Code"
+                className="w-48 h-48 object-contain mx-auto"
+              />
+            </div>
+
+            <p className="text-xs text-[#A1A1AA] font-mono break-all">{qrModal.subtitle}</p>
+
+            <button
+              onClick={() => setQrModal(null)}
+              className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
     </PartnerLayout>
   )
 }

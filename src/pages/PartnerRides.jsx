@@ -184,11 +184,26 @@ function AssignedRideCard({ assignment, onClick }) {
             <p className="text-[10px] text-[#A1A1AA] font-mono">{ride.booking_reference}</p>
           </div>
         </div>
-        <div className="flex flex-col items-end gap-1.5">
+        <div className="flex flex-col items-end gap-1">
           <RideStatusBadge status={assignment.partner_status} />
           <p className="text-xs font-bold text-orange-400">
-            ₹{Number(ride.estimated_fare || 0).toLocaleString('en-IN')}
+            ₹{Number(ride.final_fare || ride.estimated_fare || 0).toLocaleString('en-IN')}
           </p>
+          {assignment.partner_status === 'completed' && (
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+              ride.payment_status === 'confirmed' || ride.payment_status === 'paid'
+                ? 'bg-green-500/15 text-green-400'
+                : ride.payment_status === 'customer_marked_paid'
+                ? 'bg-cyan-500/15 text-cyan-400'
+                : 'bg-yellow-500/15 text-yellow-400'
+            }`}>
+              {ride.payment_status === 'confirmed' || ride.payment_status === 'paid'
+                ? `${(ride.payment_method || 'CASH').toUpperCase()} • Paid`
+                : ride.payment_status === 'customer_marked_paid'
+                ? `${(ride.payment_method || 'CASH').toUpperCase()} • Marked Paid`
+                : `${(ride.payment_method || 'CASH').toUpperCase()} • Pending`}
+            </span>
+          )}
         </div>
       </div>
 

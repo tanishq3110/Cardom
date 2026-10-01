@@ -3,11 +3,13 @@ import { PartnerLayout } from '@/components/PartnerLayout'
 import {
   Building2, Mail, Phone, MapPin, User, Pencil, Check, X,
   ShieldCheck, Clock, FileBadge, Loader2, AlertCircle, Hash,
-  Tag,
+  Tag, QrCode, Upload, Eye, Smartphone, Trash2,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { CATEGORY_LABELS } from '@/lib/constants'
 import { updatePartnerProfile, calcProfileCompletion } from '@/services/partnerProfileApi'
+import { readQrImageFileAsDataUrl } from '@/services/partnerPaymentApi'
+import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
 
 function InfoRow({ icon: Icon, label, value, field, placeholder, editing, form, setForm, type = 'text' }) {
   return (
@@ -56,6 +58,7 @@ export function PartnerProfile() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [statusMessage, setStatusMessage] = useState(null)
+  const [previewQrModal, setPreviewQrModal] = useState(null) // { src: string, title: string, subtitle: string }
 
   const [form, setForm] = useState({
     business_name: '',
@@ -67,6 +70,8 @@ export function PartnerProfile() {
     city: '',
     state: '',
     pincode: '',
+    upi_id: '',
+    upi_qr_url: '',
   })
 
   useEffect(() => {
@@ -81,6 +86,8 @@ export function PartnerProfile() {
         city: partnerProfile.city || '',
         state: partnerProfile.state || '',
         pincode: partnerProfile.pincode || '',
+        upi_id: partnerProfile.upi_id || '',
+        upi_qr_url: partnerProfile.upi_qr_url || '',
       })
     }
   }, [partnerProfile])
@@ -101,7 +108,6 @@ export function PartnerProfile() {
   }
 
   const handleCancel = () => {
-    // Reset form to last saved values
     if (partnerProfile) {
       setForm({
         business_name: partnerProfile.business_name || '',
@@ -113,9 +119,45 @@ export function PartnerProfile() {
         city: partnerProfile.city || '',
         state: partnerProfile.state || '',
         pincode: partnerProfile.pincode || '',
+        upi_id: partnerProfile.upi_id || '',
+        upi_qr_url: partnerProfile.upi_qr_url || '',
       })
     }
     setEditing(false)
+  }
+
+  const handleQrUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      const dataUrl = await readQrImageFileAsDataUrl(file)
+      setForm((prev) => ({ ...prev, upi_qr_url: dataUrl }))
+      setStatusMessage({ type: 'success', text: 'UPI QR code uploaded. Click Save to apply.' })
+      setTimeout(() => setStatusMessage(null), 3000)
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: err.message || 'Failed to read QR image' })
+    }
+  }
+
+  const handleGenerateAndPreviewDynamicQr = async () => {
+    if (!form.upi_id) {
+      setStatusMessage({ type: 'error', text: 'Please enter a UPI ID first to generate QR preview.' })
+      return
+    }
+    const uri = buildUpiUri({
+      upiId: form.upi_id,
+      payeeName: form.business_name || 'Cardom Partner',
+      amount: 250,
+      note: 'Ride Fare Preview',
+    })
+    const qrDataUrl = await generateQrDataUrl(uri)
+    if (qrDataUrl) {
+      setPreviewQrModal({
+        src: qrDataUrl,
+        title: 'Dynamic UPI QR Preview',
+        subtitle: `Locked to ₹250.00 (${form.upi_id})`,
+      })
+    }
   }
 
   const isVerified = partnerProfile?.is_verified ?? false
@@ -235,6 +277,113 @@ export function PartnerProfile() {
           )}
         </div>
 
+        {/* ── Payment Settings (Direct UPI) ── */}
+        <div className="bg-[#181818] border border-[#2A2A2A] rounded-2xl p-5 space-y-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                <QrCode className="w-4 h-4 text-orange-400" />
+                Payment Settings (Direct UPI)
+              </p>
+              <p className="text-[11px] text-[#A1A1AA] mt-1">
+                This UPI ID and QR will be shown to customers for direct payment during rides.
+              </p>
+            </div>
+            {!editing && (
+              <button
+                onClick={() => setEditing(true)}
+                className="text-xs text-orange-400 hover:text-orange-300 font-bold flex items-center gap-1 cursor-pointer"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <InfoRow
+              icon={Smartphone}
+              label="UPI ID (VPA)"
+              field="upi_id"
+              value={form.upi_id}
+              editing={editing}
+              form={form}
+              setForm={setForm}
+              placeholder="e.g. apexmotorworks@upi or 9876543210@paytm"
+            />
+
+            {/* QR Upload & Preview Section */}
+            <div className="pt-2 border-t border-[#2A2A2A] space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-[#A1A1AA] uppercase font-mono tracking-widest">Driver UPI QR Code</span>
+                {form.upi_qr_url && (
+                  <button
+                    onClick={() => setPreviewQrModal({
+                      src: form.upi_qr_url,
+                      title: 'Partner Static QR',
+                      subtitle: form.business_name || 'Apex Motor Works',
+                    })}
+                    className="text-xs text-orange-400 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <Eye className="w-3.5 h-3.5" /> View Uploaded QR
+                  </button>
+                )}
+              </div>
+
+              {form.upi_qr_url ? (
+                <div className="flex items-center gap-3 bg-[#202020] p-3 rounded-xl border border-[#2A2A2A]">
+                  <img
+                    src={form.upi_qr_url}
+                    alt="UPI QR Code"
+                    className="w-14 h-14 object-contain rounded-lg bg-white p-1"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-white">Custom QR Uploaded</p>
+                    <p className="text-[11px] text-zinc-400 truncate">Will be presented to customer upon ride completion</p>
+                  </div>
+                  {editing && (
+                    <button
+                      onClick={() => setForm((prev) => ({ ...prev, upi_qr_url: '' }))}
+                      className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 cursor-pointer"
+                      title="Remove QR"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-500 italic">No custom QR uploaded. Customers will scan dynamic QR generated from your UPI ID.</p>
+              )}
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                {editing && (
+                  <label className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#2A2A2A] hover:bg-[#333] border border-[#3A3A3A] text-xs font-semibold text-white cursor-pointer transition-colors">
+                    <Upload className="w-3.5 h-3.5 text-orange-400" />
+                    Upload QR Image
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleQrUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+
+                {form.upi_id && (
+                  <button
+                    type="button"
+                    onClick={handleGenerateAndPreviewDynamicQr}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-orange-500/15 border border-orange-500/30 text-xs font-semibold text-orange-400 hover:bg-orange-500/25 transition-colors cursor-pointer"
+                  >
+                    <QrCode className="w-3.5 h-3.5" />
+                    Preview Dynamic QR
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Business Details */}
         <div className="bg-[#181818] border border-[#2A2A2A] rounded-2xl px-5 py-2">
           <p className="text-xs font-bold text-[#A1A1AA] uppercase tracking-wider py-3 border-b border-[#2A2A2A]">Business Information</p>
@@ -262,6 +411,46 @@ export function PartnerProfile() {
         </div>
 
       </div>
+
+      {/* QR Preview Modal */}
+      {previewQrModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          onClick={() => setPreviewQrModal(null)}
+        >
+          <div
+            className="bg-[#181818] border border-[#2A2A2A] rounded-3xl p-6 max-w-xs w-full text-center space-y-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-[#2A2A2A]">
+              <h3 className="text-sm font-bold text-white">{previewQrModal.title}</h3>
+              <button
+                onClick={() => setPreviewQrModal(null)}
+                className="w-7 h-7 rounded-full bg-[#242424] text-zinc-400 hover:text-white flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="bg-white p-4 rounded-2xl inline-block shadow-inner">
+              <img
+                src={previewQrModal.src}
+                alt="QR Preview"
+                className="w-48 h-48 object-contain mx-auto"
+              />
+            </div>
+
+            <p className="text-xs text-[#A1A1AA] font-mono break-all">{previewQrModal.subtitle}</p>
+
+            <button
+              onClick={() => setPreviewQrModal(null)}
+              className="w-full py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs cursor-pointer"
+            >
+              Close Preview
+            </button>
+          </div>
+        </div>
+      )}
     </PartnerLayout>
   )
 }
