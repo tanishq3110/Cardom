@@ -35,6 +35,7 @@ import { MyInquiriesPage } from '@/pages/MyInquiriesPage'
 import { BookingsPage } from '@/pages/BookingsPage'
 import { RideBookingPage } from '@/pages/RideBookingPage'
 import { RideDetailsPage } from '@/pages/RideDetailsPage'
+import { RideReceiptPage } from '@/pages/RideReceiptPage'
 import { MobileServicesPage } from '@/pages/MobileServicesPage'
 import { MobileProfilePage } from '@/pages/MobileProfilePage'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
@@ -119,6 +120,7 @@ function App() {
             <Route path="/ride" element={<RideBookingPage />} />
             <Route path="/ride-booking" element={<RideBookingPage />} />
             <Route path="/ride/:id" element={<RideDetailsPage />} />
+            <Route path="/ride/:id/receipt" element={<RideReceiptPage />} />
             {/* ── Mobile-first routes ── */}
             <Route path="/services" element={<MobileServicesPage />} />
             <Route path="/mobile-profile" element={<MobileProfilePage />} />

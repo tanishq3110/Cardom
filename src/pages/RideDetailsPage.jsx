@@ -15,13 +15,17 @@ import {
   RefreshCw,
   User,
   Star,
-  Wifi,
-  WifiOff,
-  Compass,
+  QrCode,
+  Banknote,
+  Receipt,
+  ShieldCheck,
+  Check,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getRideBookingById, cancelRideBooking, subscribeToRideBooking } from '@/services/rideBookingApi'
 import { getDriverLocation, subscribeToDriverLocation } from '@/services/rideLocationApi'
+import { getRidePartnerPaymentInfo, markPaymentAsPaid } from '@/services/ridePaymentApi'
+import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
 import { calculateDistanceKm, formatDistance, calculateEta } from '@/utils/geoUtils'
 import { RideMap } from '@/components/map/RideMap'
 import { getRideType } from '@/config/rideTypes'
@@ -133,6 +137,16 @@ export function RideDetailsPage() {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [connectionState, setConnectionState] = useState('connected')
 
+  // Phase 5: Payment states
+  const [selectedPaymentTab, setSelectedPaymentTab] = useState('upi') // 'cash' | 'upi'
+  const [partnerPaymentInfo, setPartnerPaymentInfo] = useState(null)
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState(null)
+  const [generatingQr, setGeneratingQr] = useState(false)
+  const [markingPaid, setMarkingPaid] = useState(false)
+  const [paymentError, setPaymentError] = useState(null)
+  const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false)
+  const [confirmMethodToMark, setConfirmMethodToMark] = useState('upi')
+
   const channelRef = useRef(null)
   const locationSubRef = useRef(null)
   const heartbeatRef = useRef(null)
@@ -143,6 +157,9 @@ export function RideDetailsPage() {
       setError(err.message || 'Unable to load ride details.')
     } else {
       setBooking(data)
+      if (data?.payment_method) {
+        setSelectedPaymentTab(data.payment_method.toLowerCase() === 'cash' ? 'cash' : 'upi')
+      }
     }
     setLoading(false)
   }, [id])
@@ -151,19 +168,67 @@ export function RideDetailsPage() {
     loadBooking()
   }, [loadBooking])
 
+  // Fetch assigned partner payment information once driver is assigned or completed
+  useEffect(() => {
+    if (!id || !booking) return
+    const isAssigned = ['driver_assigned', 'arriving', 'started', 'completed'].includes(booking.status)
+    if (isAssigned) {
+      getRidePartnerPaymentInfo(id).then(({ data }) => {
+        if (data) setPartnerPaymentInfo(data)
+      })
+    }
+  }, [id, booking?.status])
+
+  // Generate UPI QR code when UPI tab is active and booking is completed or due
+  useEffect(() => {
+    if (!booking) return
+    const finalFare = booking.final_fare || booking.estimated_fare || 0
+
+    if (partnerPaymentInfo?.upi_qr_url) {
+      // Partner uploaded a custom QR image
+      setQrCodeDataUrl(partnerPaymentInfo.upi_qr_url)
+      return
+    }
+
+    if (partnerPaymentInfo?.upi_id) {
+      setGeneratingQr(true)
+      const upiUri = buildUpiUri({
+        upiId: partnerPaymentInfo.upi_id,
+        payeeName: partnerPaymentInfo.partner_name || booking.driver_name || 'Cardom Driver',
+        amount: finalFare,
+        note: `Cardom Ride ${booking.booking_reference || ''}`,
+      })
+
+      generateQrDataUrl(upiUri).then((dataUrl) => {
+        setQrCodeDataUrl(dataUrl)
+        setGeneratingQr(false)
+      })
+    }
+  }, [booking?.final_fare, booking?.estimated_fare, booking?.booking_reference, partnerPaymentInfo])
+
   // Realtime subscription for ride booking changes + heartbeat polling
   useEffect(() => {
     if (!id) return
 
     channelRef.current = subscribeToRideBooking(id, (updated) => {
-      setBooking(updated)
+      setBooking((prev) => ({ ...prev, ...updated }))
       setConnectionState('connected')
     })
 
     heartbeatRef.current = setInterval(async () => {
       const { data } = await getRideBookingById(id)
       if (data) {
-        setBooking(data)
+        setBooking((prev) => {
+          if (
+            prev?.status !== data.status ||
+            prev?.payment_status !== data.payment_status ||
+            prev?.payment_method !== data.payment_method ||
+            prev?.final_fare !== data.final_fare
+          ) {
+            return { ...prev, ...data }
+          }
+          return prev
+        })
         setConnectionState('connected')
       }
     }, 4000)
@@ -185,7 +250,6 @@ export function RideDetailsPage() {
     const status = booking.status
     const isActiveTracking = ['driver_assigned', 'arriving', 'started'].includes(status)
 
-    // Stop tracking when ride completes or cancels
     if (!isActiveTracking) {
       if (locationSubRef.current) {
         try { locationSubRef.current.unsubscribe?.() } catch (_) {}
@@ -225,6 +289,31 @@ export function RideDetailsPage() {
       setShowCancelModal(false)
       await loadBooking()
       setCancelling(false)
+    }
+  }
+
+  const handleOpenPaymentConfirm = (method) => {
+    setConfirmMethodToMark(method)
+    setPaymentError(null)
+    setShowPaymentConfirmModal(true)
+  }
+
+  const handleConfirmMarkPaid = async () => {
+    setMarkingPaid(true)
+    setPaymentError(null)
+    const { data, error: err } = await markPaymentAsPaid(booking.id, confirmMethodToMark)
+    if (err) {
+      setPaymentError(err)
+      setMarkingPaid(false)
+    } else {
+      setShowPaymentConfirmModal(false)
+      setMarkingPaid(false)
+      setBooking((prev) => ({
+        ...prev,
+        payment_method: confirmMethodToMark,
+        payment_status: 'customer_marked_paid',
+        final_fare: data?.final_fare || prev?.final_fare,
+      }))
     }
   }
 
@@ -273,7 +362,6 @@ export function RideDetailsPage() {
 
   if (driverLocation?.latitude && driverLocation?.longitude) {
     if (status === 'arriving' || status === 'driver_assigned') {
-      // Driver to Pickup
       const distKm = calculateDistanceKm(
         driverLocation.latitude,
         driverLocation.longitude,
@@ -285,7 +373,6 @@ export function RideDetailsPage() {
         dynamicEta = calculateEta(distKm, driverLocation.speed_mps)
       }
     } else if (status === 'started') {
-      // Driver to Destination
       const distKm = calculateDistanceKm(
         driverLocation.latitude,
         driverLocation.longitude,
@@ -298,6 +385,11 @@ export function RideDetailsPage() {
       }
     }
   }
+
+  const finalFare = Number(booking.final_fare || booking.estimated_fare || 0)
+  const isPaymentPaid = booking.payment_status === 'confirmed' || booking.payment_status === 'paid'
+  const isMarkedPaid = booking.payment_status === 'customer_marked_paid'
+  const partnerName = partnerPaymentInfo?.partner_name || booking.driver_name || 'Cardom Driver'
 
   return (
     <div className="min-h-dvh bg-[#0A0A0A] text-white flex flex-col pb-28">
@@ -318,20 +410,21 @@ export function RideDetailsPage() {
             {connectionState === 'connected' ? (
               <>
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span className="text-[10px] text-emerald-400 font-bold">Live</span>
+                <span className="text-[10px] text-emerald-400 font-bold font-mono">LIVE</span>
               </>
             ) : (
               <>
-                <WifiOff className="w-3 h-3 text-zinc-500" />
-                <span className="text-[10px] text-zinc-500">Reconnecting</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-[10px] text-amber-400 font-bold font-mono">CONNECTING</span>
               </>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 px-4 pt-3 space-y-3.5">
-        {/* ── Interactive Live Map with Realtime Driver Marker ── */}
+      <div className="flex-1 px-4 pt-3 space-y-3 max-w-lg mx-auto w-full">
+
+        {/* ── Prominent Interactive Map ── */}
         <div className="relative">
           <RideMap
             pickupLat={booking.pickup_latitude}
@@ -344,11 +437,13 @@ export function RideDetailsPage() {
             height="260px"
           />
 
-          {/* Floating Live Badge / Distance Pill on Map */}
+          {/* Live Floating Distance / ETA Badge */}
           {dynamicDistance && (
-            <div className="absolute top-3 left-3 z-[1000] bg-black/80 backdrop-blur-md border border-orange-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
+            <div className="absolute top-3 left-3 z-[1000] bg-black/85 backdrop-blur-md border border-orange-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
               <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
-              <span className="text-xs font-bold text-white">{dynamicDistance}</span>
+              <span className="text-xs font-bold text-white">
+                {status === 'started' ? `To Drop: ${dynamicDistance}` : `Driver: ${dynamicDistance}`}
+              </span>
               {dynamicEta && (
                 <span className="text-xs text-orange-400 font-extrabold border-l border-white/20 pl-2">
                   {dynamicEta}
@@ -358,23 +453,32 @@ export function RideDetailsPage() {
           )}
         </div>
 
-        {/* ── Status Banner Card ── */}
-        <div className={cn('p-4 rounded-2xl border flex items-center gap-3.5 shadow-sm', statusCfg.bg)}>
-          <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0', statusCfg.bg)}>
-            <StatusIcon
-              className={cn('w-5 h-5', statusCfg.color, statusCfg.animate && 'animate-spin')}
-            />
+        {/* ── Status Banner ── */}
+        <div className={cn('p-4 rounded-2xl border flex items-center justify-between gap-3 shadow-md', statusCfg.bg)}>
+          <div className="flex items-center gap-3">
+            <div className={cn('w-10 h-10 rounded-xl bg-black/20 flex items-center justify-center flex-shrink-0', statusCfg.color)}>
+              <StatusIcon className={cn('w-5 h-5', statusCfg.animate && 'animate-spin')} />
+            </div>
+            <div>
+              <p className={cn('text-sm font-bold', statusCfg.color)}>{statusCfg.label}</p>
+              <p className="text-xs text-zinc-400 mt-0.5">{statusCfg.sublabel}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className={cn('font-black text-sm', statusCfg.color)}>{statusCfg.label}</p>
-            <p className="text-[#A1A1AA] text-xs mt-0.5 truncate">{statusCfg.sublabel}</p>
-          </div>
+          {status === 'completed' && (
+            <Link
+              to={`/ride/${booking.id}/receipt`}
+              className="px-3 py-1.5 rounded-xl bg-green-500/20 border border-green-500/30 text-green-400 font-bold text-xs flex items-center gap-1 active:scale-95"
+            >
+              <Receipt className="w-3.5 h-3.5" />
+              Receipt
+            </Link>
+          )}
         </div>
 
         {/* ── Driver Card (when assigned) ── */}
         {booking.driver_name && (
           <div className="bg-[#121212] border border-[#242424] rounded-2xl p-4 flex items-center gap-3.5 shadow-md">
-            <div className="w-12 h-12 rounded-2xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0 text-orange-400">
+            <div className="w-12 h-12 rounded-2xl bg-orange-500/10 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
               <User className="w-6 h-6 text-orange-400" />
             </div>
             <div className="flex-1 min-w-0">
@@ -396,6 +500,183 @@ export function RideDetailsPage() {
               >
                 <Phone className="w-4 h-4 text-green-400" />
               </a>
+            )}
+          </div>
+        )}
+
+        {/* ── Phase 5: Direct UPI / Cash Payment Card (When Ride is Completed) ── */}
+        {status === 'completed' && (
+          <div className="bg-[#141414] border border-orange-500/30 rounded-3xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[10px] text-zinc-400 uppercase tracking-widest font-mono font-bold">Ride Completed</p>
+                <h3 className="text-xl font-black text-white mt-0.5">Final Fare</h3>
+              </div>
+              <div className="text-right">
+                <span className="text-3xl font-black text-orange-400">
+                  ₹{finalFare.toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            {/* Payment Method Selector Tabs (Cash vs UPI) */}
+            {!isPaymentPaid && (
+              <div className="grid grid-cols-2 gap-2 bg-[#0D0D0D] p-1 rounded-2xl border border-[#262626]">
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentTab('cash')}
+                  className={cn(
+                    'py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer',
+                    selectedPaymentTab === 'cash'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'text-zinc-400 hover:text-white',
+                  )}
+                >
+                  <Banknote className="w-4 h-4" />
+                  Cash
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedPaymentTab('upi')}
+                  className={cn(
+                    'py-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer',
+                    selectedPaymentTab === 'upi'
+                      ? 'bg-orange-500 text-white shadow-md'
+                      : 'text-zinc-400 hover:text-white',
+                  )}
+                >
+                  <QrCode className="w-4 h-4" />
+                  UPI
+                </button>
+              </div>
+            )}
+
+            {/* ── IF CASH FLOW ── */}
+            {selectedPaymentTab === 'cash' && !isPaymentPaid && (
+              <div className="space-y-3 pt-1">
+                <div className="p-4 rounded-2xl bg-[#1A1A1A] border border-[#2A2A2A] space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-400">
+                    <Banknote className="w-5 h-5 flex-shrink-0" />
+                    <p className="text-sm font-bold text-white">
+                      Pay ₹{finalFare} in cash to the driver.
+                    </p>
+                  </div>
+                  <p className="text-xs text-zinc-400">
+                    Hand the cash directly to <strong className="text-white">{booking.driver_name || 'the driver'}</strong> at the end of the trip.
+                  </p>
+                </div>
+
+                {isMarkedPaid ? (
+                  <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 text-cyan-400 animate-spin flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-cyan-300">Payment marked as paid in cash</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Waiting for driver confirmation on their app…</p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPaymentConfirm('cash')}
+                    className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm shadow-lg shadow-orange-500/25 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    I Have Paid Cash
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── IF UPI FLOW ── */}
+            {selectedPaymentTab === 'upi' && !isPaymentPaid && (
+              <div className="space-y-4 pt-1">
+                <div className="text-center space-y-1">
+                  <p className="text-xs text-zinc-400">Pay ₹{finalFare} via UPI to</p>
+                  <p className="text-sm font-bold text-white">{partnerName}</p>
+                  {partnerPaymentInfo?.upi_id ? (
+                    <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#1A1A1A] border border-[#333] rounded-full text-xs font-mono text-orange-400">
+                      <span>UPI ID:</span>
+                      <strong className="text-white">{partnerPaymentInfo.upi_id}</strong>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-yellow-400 mt-1">Driver UPI ID loading or unavailable</p>
+                  )}
+                </div>
+
+                {/* Driver QR Box */}
+                <div className="bg-white p-4 rounded-3xl max-w-[260px] mx-auto shadow-2xl text-center space-y-2">
+                  {generatingQr ? (
+                    <div className="w-52 h-52 flex flex-col items-center justify-center gap-2">
+                      <Loader2 className="w-8 h-8 text-black animate-spin" />
+                      <span className="text-xs text-zinc-600">Generating UPI QR…</span>
+                    </div>
+                  ) : qrCodeDataUrl ? (
+                    <img
+                      src={qrCodeDataUrl}
+                      alt="Driver UPI QR"
+                      className="w-52 h-52 object-contain mx-auto"
+                    />
+                  ) : (
+                    <div className="w-52 h-52 bg-zinc-100 rounded-2xl flex flex-col items-center justify-center p-3 text-center">
+                      <QrCode className="w-8 h-8 text-zinc-400 mb-1" />
+                      <p className="text-xs text-zinc-600 font-medium">QR code unavailable</p>
+                      <p className="text-[10px] text-zinc-500">Pay ₹{finalFare} directly to UPI ID above or in Cash.</p>
+                    </div>
+                  )}
+                  <p className="text-[10px] font-bold text-black uppercase tracking-wider">
+                    Scan with GPay • PhonePe • Paytm
+                  </p>
+                </div>
+
+                <p className="text-[11px] text-center text-zinc-400 max-w-xs mx-auto">
+                  Scan this QR using Google Pay, PhonePe, Paytm or another UPI app.
+                </p>
+
+                {isMarkedPaid ? (
+                  <div className="p-4 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center gap-3">
+                    <Loader2 className="w-5 h-5 text-cyan-400 animate-spin flex-shrink-0" />
+                    <div>
+                      <p className="text-xs font-bold text-cyan-300">Payment marked as paid</p>
+                      <p className="text-[11px] text-zinc-400 mt-0.5">Waiting for driver confirmation…</p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPaymentConfirm('upi')}
+                    className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm shadow-lg shadow-orange-500/25 active:scale-[0.98] transition-all cursor-pointer"
+                  >
+                    I've Paid
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* ── IF PAYMENT CONFIRMED / PAID ── */}
+            {isPaymentPaid && (
+              <div className="p-5 rounded-2xl bg-green-500/10 border border-green-500/30 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center mx-auto text-green-400">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-base font-extrabold text-green-400">Payment Confirmed</h4>
+                  <p className="text-xs text-green-300/80 mt-0.5">
+                    ₹{finalFare} Paid via {booking.payment_method?.toUpperCase() || 'UPI'}
+                  </p>
+                  <p className="text-[11px] text-zinc-400 mt-1">Driver verified receipt of payment.</p>
+                </div>
+
+                <Link
+                  to={`/ride/${booking.id}/receipt`}
+                  className="w-full py-3.5 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold text-xs flex items-center justify-center gap-2 active:scale-[0.98] transition-all"
+                >
+                  <Receipt className="w-4 h-4" />
+                  View Ride Receipt
+                </Link>
+              </div>
+            )}
+
+            {paymentError && (
+              <p className="text-xs text-red-400 text-center">{paymentError}</p>
             )}
           </div>
         )}
@@ -425,9 +706,11 @@ export function RideDetailsPage() {
         <div className="bg-[#121212] border border-[#242424] rounded-2xl p-3.5 shadow-md">
           <div className="grid grid-cols-3 gap-2">
             <div className="text-center">
-              <p className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">Fare</p>
+              <p className="text-[10px] text-zinc-500 uppercase font-mono tracking-wider">
+                {status === 'completed' ? 'Final Fare' : 'Fare'}
+              </p>
               <p className="text-orange-400 font-extrabold text-base mt-0.5">
-                ₹{Number(booking.estimated_fare || 0).toLocaleString('en-IN')}
+                ₹{finalFare.toLocaleString('en-IN')}
               </p>
             </div>
             <div className="text-center border-x border-[#222222]">
@@ -528,6 +811,67 @@ export function RideDetailsPage() {
                 >
                   {cancelling ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   {cancelling ? 'Cancelling...' : 'Yes, Cancel'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Payment Confirmation Modal (Edge case: Prevent accidental "I've Paid" tap) ── */}
+      <AnimatePresence>
+        {showPaymentConfirmModal && (
+          <div
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/75 backdrop-blur-sm"
+            onClick={() => setShowPaymentConfirmModal(false)}
+          >
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-lg bg-[#141414] border border-[#2A2A2A] rounded-t-3xl p-6 pb-10 space-y-4"
+            >
+              <div className="w-10 h-1 bg-[#333] rounded-full mx-auto mb-2" />
+              <div className="text-center space-y-2">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center mx-auto">
+                  {confirmMethodToMark === 'cash' ? (
+                    <Banknote className="w-7 h-7 text-emerald-400" />
+                  ) : (
+                    <QrCode className="w-7 h-7 text-orange-400" />
+                  )}
+                </div>
+                <h3 className="text-lg font-bold text-white">
+                  Confirm {confirmMethodToMark === 'cash' ? 'Cash' : 'UPI'} Payment
+                </h3>
+                <p className="text-zinc-400 text-xs max-w-xs mx-auto">
+                  {confirmMethodToMark === 'cash'
+                    ? `Have you handed ₹${finalFare} in cash to ${partnerName}?`
+                    : `Have you completed the UPI transfer of ₹${finalFare} to ${partnerName} in your UPI app?`}
+                </p>
+              </div>
+
+              {paymentError && (
+                <p className="text-red-400 text-xs text-center">{paymentError}</p>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentConfirmModal(false)}
+                  className="flex-1 py-3.5 rounded-xl border border-[#2A2A2A] bg-[#1A1A1A] text-white font-semibold text-xs"
+                >
+                  Not Yet
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmMarkPaid}
+                  disabled={markingPaid}
+                  className="flex-1 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {markingPaid ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                  {markingPaid ? 'Updating…' : 'Yes, I Have Paid'}
                 </button>
               </div>
             </motion.div>

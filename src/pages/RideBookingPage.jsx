@@ -22,9 +22,8 @@ import { cn } from '@/lib/utils'
 const PLACEHOLDER_DISTANCE_KM = 12.4
 
 const PAYMENT_METHODS = [
-  { id: 'upi', label: 'UPI', icon: '🔷' },
-  { id: 'card', label: 'Card', icon: '💳' },
-  { id: 'cash', label: 'Cash', icon: '💵' },
+  { id: 'upi', label: 'Direct UPI (Partner QR)', icon: '🔷' },
+  { id: 'cash', label: 'Cash to Driver', icon: '💵' },
 ]
 
 export function RideBookingPage() {

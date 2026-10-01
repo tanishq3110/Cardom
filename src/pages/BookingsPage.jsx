@@ -173,11 +173,27 @@ export function BookingsPage() {
                           <p className="text-[#A1A1AA] text-[11px] capitalize">{rideType?.name || item.ride_type}</p>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex flex-col items-end gap-1">
                         <StatusPill status={item.status} />
                         <span className="text-orange-400 font-black text-sm">
-                          ₹{item.estimated_fare ? Number(item.estimated_fare).toLocaleString('en-IN') : '—'}
+                          ₹{Number(item.final_fare || item.estimated_fare || 0).toLocaleString('en-IN')}
                         </span>
+                        {item.status === 'completed' && (
+                          <span className={cn(
+                            'text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider',
+                            item.payment_status === 'confirmed' || item.payment_status === 'paid'
+                              ? 'bg-green-500/15 text-green-400 border border-green-500/30'
+                              : item.payment_status === 'customer_marked_paid'
+                              ? 'bg-cyan-500/15 text-cyan-400 border border-cyan-500/30'
+                              : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
+                          )}>
+                            {item.payment_status === 'confirmed' || item.payment_status === 'paid'
+                              ? `${item.payment_method?.toUpperCase() || 'CASH'} • Paid`
+                              : item.payment_status === 'customer_marked_paid'
+                              ? `${item.payment_method?.toUpperCase() || 'CASH'} • Marked Paid`
+                              : `${item.payment_method?.toUpperCase() || 'CASH'} • Payment Due`}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-1">
