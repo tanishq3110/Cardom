@@ -33,6 +33,8 @@ export function RideBookingPage() {
 
   const [pickup, setPickup] = useState('')
   const [drop, setDrop] = useState('')
+  const [pickupCoords, setPickupCoords] = useState(null)
+  const [dropCoords, setDropCoords] = useState(null)
   const [selectedTierId, setSelectedTierId] = useState('economy')
   const [paymentMethod, setPaymentMethod] = useState('upi')
   const [isLocating, setIsLocating] = useState(false)
@@ -45,10 +47,28 @@ export function RideBookingPage() {
 
   const handleUseCurrentLocation = () => {
     setIsLocating(true)
-    setTimeout(() => {
-      setPickup('Your Current Location')
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setPickup('Current Location (GPS)')
+          setPickupCoords({
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+          })
+          setIsLocating(false)
+        },
+        () => {
+          setPickup('Current Location')
+          setPickupCoords({ latitude: 31.634, longitude: 74.8723 })
+          setIsLocating(false)
+        },
+        { enableHighAccuracy: true, timeout: 6000 }
+      )
+    } else {
+      setPickup('Current Location')
+      setPickupCoords({ latitude: 31.634, longitude: 74.8723 })
       setIsLocating(false)
-    }, 600)
+    }
   }
 
   const handleConfirmBooking = async () => {
@@ -67,9 +87,18 @@ export function RideBookingPage() {
     }
 
     setIsBooking(true)
+    const pLat = pickupCoords?.latitude || 31.634
+    const pLng = pickupCoords?.longitude || 74.8723
+    const dLat = dropCoords?.latitude || (pLat + 0.035)
+    const dLng = dropCoords?.longitude || (pLng + 0.028)
+
     const { data, error: bookingError } = await createRideBooking({
       pickupAddress: pickup.trim(),
       dropAddress: drop.trim(),
+      pickupLatitude: pLat,
+      pickupLongitude: pLng,
+      dropLatitude: dLat,
+      dropLongitude: dLng,
       rideType: selectedTierId,
       estimatedFare,
       estimatedDistanceKm: PLACEHOLDER_DISTANCE_KM,
