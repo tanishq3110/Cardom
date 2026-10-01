@@ -6,6 +6,8 @@ import { AuthProvider } from '@/context/AuthContext'
 import { ComparisonProvider } from '@/context/ComparisonContext'
 import { FloatingCompareBar } from '@/components/common/FloatingCompareBar'
 import { HomePage } from '@/pages/HomePage'
+import { MobileHomePage } from '@/pages/MobileHomePage'
+import { SplashPage } from '@/pages/SplashPage'
 import { CarsPage } from '@/pages/CarsPage'
 import { CarDetailPage } from '@/pages/CarDetailPage'
 import { ComparePage } from '@/pages/ComparePage'
@@ -33,6 +35,8 @@ import { MyInquiriesPage } from '@/pages/MyInquiriesPage'
 import { BookingsPage } from '@/pages/BookingsPage'
 import { RideBookingPage } from '@/pages/RideBookingPage'
 import { RideDetailsPage } from '@/pages/RideDetailsPage'
+import { MobileServicesPage } from '@/pages/MobileServicesPage'
+import { MobileProfilePage } from '@/pages/MobileProfilePage'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { EmailVerificationBanner } from '@/components/common/EmailVerificationBanner'
 
@@ -81,7 +85,9 @@ function App() {
           <EmailVerificationBanner />
           <Routes>
             {/* ── Public routes ── */}
-            <Route path="/" element={<HomePage />} />
+            <Route path="/splash" element={<SplashPage />} />
+            <Route path="/home" element={<MobileHomePage />} />
+            <Route path="/" element={<MobileHomePage />} />
             <Route path="/cars" element={<CarsPage />} />
             <Route path="/cars/:id" element={<CarDetailPage />} />
             <Route path="/compare" element={<ComparePage />} />
@@ -113,6 +119,9 @@ function App() {
             <Route path="/ride" element={<RideBookingPage />} />
             <Route path="/ride-booking" element={<RideBookingPage />} />
             <Route path="/ride/:id" element={<RideDetailsPage />} />
+            {/* ── Mobile-first routes ── */}
+            <Route path="/services" element={<MobileServicesPage />} />
+            <Route path="/mobile-profile" element={<MobileProfilePage />} />
           </Routes>
           <FloatingCompareBar />
           <MobileBottomNav />
