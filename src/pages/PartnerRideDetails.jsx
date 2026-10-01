@@ -4,7 +4,7 @@ import { PartnerLayout } from '@/components/PartnerLayout'
 import {
   Navigation, Car, MapPin, ArrowLeft, Loader2,
   AlertCircle, CheckCircle, Phone, User,
-  Hash, CreditCard, Clock,
+  Hash, CreditCard, Clock, Compass, ShieldAlert,
 } from 'lucide-react'
 import {
   getRideById,
@@ -12,6 +12,13 @@ import {
   completeRide,
   subscribeToRideDetails,
 } from '@/services/partnerRideApi'
+import {
+  startDriverLocationTracking,
+  stopDriverLocationTracking,
+  checkAndRequestLocationPermission,
+} from '@/services/partnerLocationApi'
+import { RideMap } from '@/components/map/RideMap'
+import { calculateDistanceKm, formatDistance, calculateEta } from '@/utils/geoUtils'
 
 const RIDE_TYPE_LABELS = {
   economy: 'Cardom Go',
@@ -67,6 +74,8 @@ export function PartnerRideDetails() {
   const [fetchError, setFetchError] = useState(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [actionError, setActionError] = useState(null)
+  const [driverCoords, setDriverCoords] = useState(null)
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false)
 
   const unsubscribeRef = useRef(null)
 
@@ -111,7 +120,7 @@ export function PartnerRideDetails() {
       })
     })
 
-    // Resilient fallback background sync (every 4s while ride is active)
+    // Fallback polling every 4s
     const interval = setInterval(async () => {
       const { data } = await getRideById(id)
       if (data) {
@@ -134,8 +143,51 @@ export function PartnerRideDetails() {
         unsubscribeRef.current()
         unsubscribeRef.current = null
       }
+      stopDriverLocationTracking()
     }
   }, [id, loadRide])
+
+  // GPS Tracking lifecycle based on partnerStatus
+  useEffect(() => {
+    const partnerStatus = assignment?.partner_status
+    const isLive = ['accepted', 'started'].includes(partnerStatus)
+
+    if (isLive && id) {
+      startDriverLocationTracking(
+        id,
+        (coords) => {
+          setDriverCoords(coords)
+          setLocationPermissionDenied(false)
+        },
+        (err) => {
+          console.warn('[Partner GPS] Tracking warning/error:', err)
+          if (err.message && (err.message.includes('permission') || err.message.includes('denied'))) {
+            setLocationPermissionDenied(true)
+          }
+        }
+      )
+    } else {
+      stopDriverLocationTracking()
+    }
+
+    return () => {
+      stopDriverLocationTracking()
+    }
+  }, [id, assignment?.partner_status])
+
+  const handleRequestPermission = async () => {
+    const perm = await checkAndRequestLocationPermission()
+    if (perm.granted) {
+      setLocationPermissionDenied(false)
+      if (id) {
+        startDriverLocationTracking(
+          id,
+          (coords) => setDriverCoords(coords),
+          () => setLocationPermissionDenied(true)
+        )
+      }
+    }
+  }
 
   const handleStartRide = async () => {
     setActionLoading(true)
@@ -156,6 +208,7 @@ export function PartnerRideDetails() {
     if (result.error) {
       setActionError(result.error)
     } else {
+      stopDriverLocationTracking()
       await loadRide()
     }
     setActionLoading(false)
@@ -164,8 +217,38 @@ export function PartnerRideDetails() {
   const ride = assignment?.ride_bookings
   const partnerStatus = assignment?.partner_status
 
+  // Dynamic distance calculation
+  let dynamicDistance = null
+  let dynamicEta = null
+
+  if (driverCoords?.latitude && driverCoords?.longitude && ride) {
+    if (partnerStatus === 'accepted') {
+      const dist = calculateDistanceKm(
+        driverCoords.latitude,
+        driverCoords.longitude,
+        ride.pickup_latitude,
+        ride.pickup_longitude
+      )
+      if (dist !== null) {
+        dynamicDistance = formatDistance(dist)
+        dynamicEta = calculateEta(dist, driverCoords.speed)
+      }
+    } else if (partnerStatus === 'started') {
+      const dist = calculateDistanceKm(
+        driverCoords.latitude,
+        driverCoords.longitude,
+        ride.drop_latitude,
+        ride.drop_longitude
+      )
+      if (dist !== null) {
+        dynamicDistance = formatDistance(dist)
+        dynamicEta = calculateEta(dist, driverCoords.speed)
+      }
+    }
+  }
+
   return (
-    <PartnerLayout title="Ride Details" subtitle="Manage ride status">
+    <PartnerLayout title="Ride Details" subtitle="Live tracking and operations">
       <div className="px-4 sm:px-6 py-6 space-y-4 max-w-2xl">
 
         <button
@@ -198,6 +281,57 @@ export function PartnerRideDetails() {
 
         {!loading && !fetchError && ride && (
           <>
+            {/* ── Location Permission Warning Banner (if denied) ── */}
+            {locationPermissionDenied && ['accepted', 'started'].includes(partnerStatus) && (
+              <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <ShieldAlert className="w-5 h-5 text-amber-400 flex-shrink-0" />
+                  <div>
+                    <p className="text-xs font-bold text-amber-300">Location Permission Required</p>
+                    <p className="text-[11px] text-zinc-400 mt-0.5">
+                      Enable GPS permission so the customer can track your arrival in real time.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleRequestPermission}
+                  className="px-3 py-1.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs flex-shrink-0 cursor-pointer"
+                >
+                  Enable Location
+                </button>
+              </div>
+            )}
+
+            {/* ── Prominent Interactive Map ── */}
+            <div className="relative">
+              <RideMap
+                pickupLat={ride.pickup_latitude}
+                pickupLng={ride.pickup_longitude}
+                dropLat={ride.drop_latitude}
+                dropLng={ride.drop_longitude}
+                driverLat={driverCoords?.latitude || null}
+                driverLng={driverCoords?.longitude || null}
+                heading={driverCoords?.heading || 0}
+                height="260px"
+              />
+
+              {/* Live Distance / Target Indicator */}
+              {dynamicDistance && (
+                <div className="absolute top-3 left-3 z-[1000] bg-black/85 backdrop-blur-md border border-orange-500/30 px-3 py-1.5 rounded-full flex items-center gap-2 shadow-lg">
+                  <span className="w-2 h-2 rounded-full bg-orange-500 animate-ping" />
+                  <span className="text-xs font-bold text-white">
+                    {partnerStatus === 'accepted' ? `To Pickup: ${dynamicDistance}` : `To Drop: ${dynamicDistance}`}
+                  </span>
+                  {dynamicEta && (
+                    <span className="text-xs text-orange-400 font-extrabold border-l border-white/20 pl-2">
+                      {dynamicEta}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* ── Main Status & Route Card ── */}
             <div className="bg-[#202020] border border-[#2A2A2A] rounded-2xl p-5 space-y-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
@@ -218,12 +352,12 @@ export function PartnerRideDetails() {
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
                   <span className="text-[#A1A1AA] w-14 flex-shrink-0">Pickup</span>
-                  <span className="text-white font-medium">{ride.pickup_address}</span>
+                  <span className="text-white font-medium truncate">{ride.pickup_address}</span>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   <span className="w-2.5 h-2.5 rounded-full bg-orange-400 flex-shrink-0" />
                   <span className="text-[#A1A1AA] w-14 flex-shrink-0">Drop</span>
-                  <span className="text-white font-medium">{ride.drop_address}</span>
+                  <span className="text-white font-medium truncate">{ride.drop_address}</span>
                 </div>
               </div>
 
@@ -235,6 +369,59 @@ export function PartnerRideDetails() {
               </div>
             </div>
 
+            {/* ── Operational Action Buttons ── */}
+            {actionError && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{actionError}</span>
+              </div>
+            )}
+
+            {partnerStatus === 'accepted' && (
+              <button
+                onClick={handleStartRide}
+                disabled={actionLoading}
+                className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 transition-colors shadow-lg shadow-orange-500/20 active:scale-[0.98]"
+              >
+                {actionLoading
+                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : <><Car className="w-5 h-5" />Start Ride</>}
+              </button>
+            )}
+
+            {partnerStatus === 'started' && (
+              <button
+                onClick={handleCompleteRide}
+                disabled={actionLoading}
+                className="w-full py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 transition-colors shadow-lg shadow-green-500/20 active:scale-[0.98]"
+              >
+                {actionLoading
+                  ? <Loader2 className="w-5 h-5 animate-spin" />
+                  : <><CheckCircle className="w-5 h-5" />Complete Ride</>}
+              </button>
+            )}
+
+            {partnerStatus === 'completed' && (
+              <div className="p-5 rounded-2xl border border-green-500/25 bg-green-500/10 flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-green-400">Ride Completed</p>
+                  <p className="text-xs text-green-300/70 mt-0.5">This ride has been successfully completed. GPS tracking stopped.</p>
+                </div>
+              </div>
+            )}
+
+            {partnerStatus === 'cancelled' && (
+              <div className="p-5 rounded-2xl border border-red-500/25 bg-red-500/10 flex items-center gap-3">
+                <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-red-400">Ride Cancelled</p>
+                  <p className="text-xs text-red-300/70 mt-0.5">This ride assignment was cancelled.</p>
+                </div>
+              </div>
+            )}
+
+            {/* ── Ride Info Details ── */}
             <div className="bg-[#202020] border border-[#2A2A2A] rounded-2xl px-4 py-2">
               <p className="text-[10px] font-bold text-[#A1A1AA] uppercase tracking-wider py-3 border-b border-[#2A2A2A]">
                 Ride Information
@@ -263,57 +450,6 @@ export function PartnerRideDetails() {
                 <InfoRow icon={User}  label="Driver Name"   value={ride.driver_name || '—'} />
                 <InfoRow icon={Phone} label="Driver Phone"  value={ride.driver_phone} />
                 <InfoRow icon={Car}   label="Vehicle"       value={ride.vehicle_name} />
-              </div>
-            )}
-
-            {actionError && (
-              <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{actionError}</span>
-              </div>
-            )}
-
-            {partnerStatus === 'accepted' && (
-              <button
-                onClick={handleStartRide}
-                disabled={actionLoading}
-                className="w-full py-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 transition-colors shadow-lg shadow-orange-500/20"
-              >
-                {actionLoading
-                  ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <><Car className="w-5 h-5" />Start Ride</>}
-              </button>
-            )}
-
-            {partnerStatus === 'started' && (
-              <button
-                onClick={handleCompleteRide}
-                disabled={actionLoading}
-                className="w-full py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-extrabold text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70 transition-colors shadow-lg shadow-green-500/20"
-              >
-                {actionLoading
-                  ? <Loader2 className="w-5 h-5 animate-spin" />
-                  : <><CheckCircle className="w-5 h-5" />Complete Ride</>}
-              </button>
-            )}
-
-            {partnerStatus === 'completed' && (
-              <div className="p-5 rounded-2xl border border-green-500/25 bg-green-500/10 flex items-center gap-3">
-                <CheckCircle className="w-6 h-6 text-green-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-green-400">Ride Completed</p>
-                  <p className="text-xs text-green-300/70 mt-0.5">This ride has been successfully completed.</p>
-                </div>
-              </div>
-            )}
-
-            {partnerStatus === 'cancelled' && (
-              <div className="p-5 rounded-2xl border border-red-500/25 bg-red-500/10 flex items-center gap-3">
-                <AlertCircle className="w-6 h-6 text-red-400 flex-shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-red-400">Ride Cancelled</p>
-                  <p className="text-xs text-red-300/70 mt-0.5">This ride assignment was cancelled.</p>
-                </div>
               </div>
             )}
           </>
