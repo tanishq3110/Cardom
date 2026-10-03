@@ -14,6 +14,8 @@ import {
   rejectRide,
   subscribeToPartnerAssignments,
 } from '@/services/partnerRideApi'
+import { getActiveOffer, subscribeToPartnerOffers } from '@/services/partnerDispatchApi'
+import { RideOfferModal } from '@/components/dispatch/RideOfferModal'
 
 const RIDE_TYPE_LABELS = {
   economy: 'Cardom Go',
@@ -234,13 +236,15 @@ export function PartnerRides() {
   const [assigned, setAssigned] = useState([])
   const [loading, setLoading] = useState(true)
   const [pageError, setPageError] = useState(null)
+  const [currentOffer, setCurrentOffer] = useState(null)
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setPageError(null)
-    const [availRes, assignedRes] = await Promise.all([
+    const [availRes, assignedRes, offerRes] = await Promise.all([
       getAvailableRides(),
       getPartnerRides(),
+      getActiveOffer(),
     ])
     if (availRes.error) {
       setPageError('Unable to load ride requests. Please try again.')
@@ -250,6 +254,7 @@ export function PartnerRides() {
     if (!assignedRes.error) {
       setAssigned(assignedRes.data || [])
     }
+    setCurrentOffer(offerRes.offer || null)
     setLoading(false)
   }, [])
 
@@ -258,14 +263,23 @@ export function PartnerRides() {
 
     // Realtime subscription for partner assignments
     let unsubscribe = null
+    let unsubOffers = null
     if (user?.id) {
       unsubscribe = subscribeToPartnerAssignments(user.id, () => {
         loadData()
+      })
+      unsubOffers = subscribeToPartnerOffers(user.id, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.new?.status === 'offered') {
+          getActiveOffer().then(res => setCurrentOffer(res.offer || null))
+        } else if (payload.new?.status && payload.new.status !== 'offered') {
+          setCurrentOffer(null)
+        }
       })
     }
 
     return () => {
       if (unsubscribe) unsubscribe()
+      if (unsubOffers) unsubOffers()
     }
   }, [loadData, user?.id])
 
@@ -405,6 +419,15 @@ export function PartnerRides() {
           )
         )}
       </div>
+
+      <RideOfferModal
+        offer={currentOffer}
+        onOfferClosed={() => {
+          setCurrentOffer(null)
+          loadData()
+        }}
+      />
     </PartnerLayout>
   )
 }
+

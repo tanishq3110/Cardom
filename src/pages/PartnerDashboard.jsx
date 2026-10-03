@@ -8,6 +8,14 @@ import { useAuth } from '@/context/AuthContext'
 import { getPartnerDashboardStats, getPartnerRecentLeads } from '@/services/partnerLeadsApi'
 import { getAvailableRides, getPartnerRides } from '@/services/partnerRideApi'
 import { getPartnerRatingStats } from '@/services/partnerRatingsApi'
+import { getPartnerAvailability } from '@/services/partnerAvailabilityApi'
+import {
+  startPartnerAvailabilityLocationTracking,
+  stopPartnerAvailabilityLocationTracking,
+} from '@/services/partnerLocationApi'
+import { getActiveOffer, subscribeToPartnerOffers } from '@/services/partnerDispatchApi'
+import { PartnerAvailabilityCard } from '@/components/availability/PartnerAvailabilityCard'
+import { RideOfferModal } from '@/components/dispatch/RideOfferModal'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -17,7 +25,7 @@ function getGreeting() {
 }
 
 export function PartnerDashboard() {
-  const { partnerProfile } = useAuth()
+  const { user, partnerProfile } = useAuth()
   const navigate = useNavigate()
   const [stats, setStats] = useState(null)
   const [recentLeads, setRecentLeads] = useState([])
@@ -25,6 +33,9 @@ export function PartnerDashboard() {
   const [rideStats, setRideStats] = useState({ available: 0, active: 0, completed: 0 })
   const [rideLoading, setRideLoading] = useState(true)
   const [ratingStats, setRatingStats] = useState({ average: 0, count: 0 })
+  const [isOnline, setIsOnline] = useState(false)
+  const [activeRideId, setActiveRideId] = useState(null)
+  const [currentOffer, setCurrentOffer] = useState(null)
 
   const category = partnerProfile?.partner_category
   const businessName = partnerProfile?.business_name || 'Partner'
@@ -51,8 +62,11 @@ export function PartnerDashboard() {
     ])
     const availCount = availRes.data?.length || 0
     const assigned = assignedRes.data || []
+    const active = assigned.find(a => ['accepted', 'started'].includes(a.partner_status))
     const activeCount = assigned.filter(a => ['accepted', 'started'].includes(a.partner_status)).length
     const completedCount = assigned.filter(a => a.partner_status === 'completed').length
+
+    setActiveRideId(active?.ride_id || null)
     setRideStats({ available: availCount, active: activeCount, completed: completedCount })
     if (ratingsRes) {
       setRatingStats(ratingsRes)
@@ -60,10 +74,49 @@ export function PartnerDashboard() {
     setRideLoading(false)
   }, [])
 
+  const fetchAvailabilityAndOffers = useCallback(async () => {
+    const avail = await getPartnerAvailability()
+    setIsOnline(avail.isOnline)
+
+    if (avail.isOnline) {
+      startPartnerAvailabilityLocationTracking()
+      const offerRes = await getActiveOffer()
+      setCurrentOffer(offerRes.offer || null)
+    } else {
+      stopPartnerAvailabilityLocationTracking()
+      setCurrentOffer(null)
+    }
+  }, [])
+
   useEffect(() => {
     fetchData()
     fetchRideStats()
-  }, [fetchData, fetchRideStats])
+    fetchAvailabilityAndOffers()
+  }, [fetchData, fetchRideStats, fetchAvailabilityAndOffers])
+
+  // Realtime subscription for incoming dispatch offers
+  useEffect(() => {
+    if (!user?.id) return
+    const unsub = subscribeToPartnerOffers(user.id, (payload) => {
+      if (payload.eventType === 'INSERT' || payload.new?.status === 'offered') {
+        getActiveOffer().then(res => setCurrentOffer(res.offer || null))
+      } else if (payload.new?.status && payload.new.status !== 'offered') {
+        setCurrentOffer(null)
+      }
+    })
+    return () => unsub()
+  }, [user?.id])
+
+  const handleAvailabilityChange = (newStatus) => {
+    setIsOnline(newStatus)
+    if (newStatus) {
+      startPartnerAvailabilityLocationTracking()
+      getActiveOffer().then(res => setCurrentOffer(res.offer || null))
+    } else {
+      stopPartnerAvailabilityLocationTracking()
+      setCurrentOffer(null)
+    }
+  }
 
   const statCards = stats
     ? [
@@ -102,6 +155,14 @@ export function PartnerDashboard() {
             </span>
           </div>
         )}
+
+        {/* Availability Card */}
+        <PartnerAvailabilityCard
+          isOnline={isOnline}
+          isBusy={Boolean(activeRideId)}
+          activeRideId={activeRideId}
+          onAvailabilityChange={handleAvailabilityChange}
+        />
 
         {/* Greeting */}
         <div>
@@ -235,6 +296,17 @@ export function PartnerDashboard() {
         </div>
 
       </div>
+
+      {/* Incoming Ride Offer Modal */}
+      {currentOffer && (
+        <RideOfferModal
+          offer={currentOffer}
+          onOfferClosed={() => {
+            setCurrentOffer(null)
+            fetchRideStats()
+          }}
+        />
+      )}
     </PartnerLayout>
   )
 }

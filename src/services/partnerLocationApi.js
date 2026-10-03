@@ -7,11 +7,13 @@
 import { Geolocation } from '@capacitor/geolocation'
 import { Capacitor } from '@capacitor/core'
 import { supabase } from '@/lib/supabase'
+import { reportPartnerLocation } from '@/services/partnerAvailabilityApi'
 
 let activeWatchId = null
 let activeRideId = null
 let lastUpdateTime = 0
 let lastPosition = null
+let availabilityTimer = null
 const MIN_UPDATE_INTERVAL_MS = 6000 // 6 seconds throttle to avoid excessive writes
 const MIN_DISTANCE_METERS = 5 // or when moved at least 5 meters
 
@@ -249,4 +251,37 @@ export function stopDriverLocationTracking() {
   activeRideId = null
   lastPosition = null
   lastUpdateTime = 0
+}
+
+/**
+ * Start periodic general availability location reporting when partner is ONLINE.
+ * Only reports to public.partner_locations, never interferes with active ride GPS.
+ */
+export function startPartnerAvailabilityLocationTracking() {
+  if (availabilityTimer) return
+
+  const report = async () => {
+    try {
+      const loc = await getCurrentLocation()
+      if (loc?.coords) {
+        await reportPartnerLocation(loc.coords)
+      }
+    } catch (_e) {}
+  }
+
+  // Initial immediate report
+  report()
+
+  // Periodic report every 20 seconds
+  availabilityTimer = setInterval(report, 20000)
+}
+
+/**
+ * Stop availability location tracking (e.g. when partner goes offline).
+ */
+export function stopPartnerAvailabilityLocationTracking() {
+  if (availabilityTimer) {
+    clearInterval(availabilityTimer)
+    availabilityTimer = null
+  }
 }

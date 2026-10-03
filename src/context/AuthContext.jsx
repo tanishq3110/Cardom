@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { getPartnerUnreadNotificationCount } from '@/services/partnerNotificationsApi'
+import { setPartnerOffline } from '@/services/partnerAvailabilityApi'
+import { stopPartnerAvailabilityLocationTracking } from '@/services/partnerLocationApi'
 
 export const AuthContext = createContext(null)
 
@@ -210,6 +212,12 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     try {
+      try {
+        await stopPartnerAvailabilityLocationTracking()
+        await setPartnerOffline()
+      } catch (e) {
+        console.warn('Failed to take partner offline on logout:', e)
+      }
       await supabase.auth.signOut()
     } catch (err) {
       console.warn('Error during sign out:', err)
