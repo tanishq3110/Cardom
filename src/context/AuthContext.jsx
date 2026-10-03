@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getPartnerUnreadNotificationCount } from '@/services/partnerNotificationsApi'
 
 export const AuthContext = createContext(null)
 
@@ -7,6 +8,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [partnerProfile, setPartnerProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0)
 
   const fetchProfile = useCallback(async (userId) => {
     if (!userId) {
@@ -34,6 +36,15 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
+  const loadUnreadNotifications = useCallback(async (currentUser) => {
+    if (!currentUser) {
+      setUnreadNotificationsCount(0)
+      return
+    }
+    const count = await getPartnerUnreadNotificationCount()
+    setUnreadNotificationsCount(count || 0)
+  }, [])
+
   useEffect(() => {
     let isMounted = true
 
@@ -46,9 +57,13 @@ export function AuthProvider({ children }) {
         setUser(currentUser)
 
         if (currentUser) {
-          await fetchProfile(currentUser.id)
+          await Promise.all([
+            fetchProfile(currentUser.id),
+            loadUnreadNotifications(currentUser),
+          ])
         } else {
           setPartnerProfile(null)
+          setUnreadNotificationsCount(0)
         }
       } catch (err) {
         console.error('Session initialization error:', err)
@@ -66,9 +81,13 @@ export function AuthProvider({ children }) {
       setUser(currentUser)
 
       if (currentUser) {
-        await fetchProfile(currentUser.id)
+        await Promise.all([
+          fetchProfile(currentUser.id),
+          loadUnreadNotifications(currentUser),
+        ])
       } else {
         setPartnerProfile(null)
+        setUnreadNotificationsCount(0)
       }
       setLoading(false)
     })
@@ -77,7 +96,7 @@ export function AuthProvider({ children }) {
       isMounted = false
       subscription?.unsubscribe()
     }
-  }, [fetchProfile])
+  }, [fetchProfile, loadUnreadNotifications])
 
   const refreshProfile = useCallback(async () => {
     if (user) {
@@ -222,6 +241,9 @@ export function AuthProvider({ children }) {
         signOut,
         refreshProfile,
         requestPasswordReset,
+        unreadNotificationsCount,
+        setUnreadNotificationsCount,
+        refreshUnreadNotifications: () => loadUnreadNotifications(user),
       }}
     >
       {children}

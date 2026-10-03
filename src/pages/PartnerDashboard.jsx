@@ -3,10 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { PartnerLayout } from '@/components/PartnerLayout'
 import { StatCard } from '@/components/StatCard'
 import { LeadCard } from '@/components/LeadCard'
-import { FileText, Clock, Activity, CheckCircle, Navigation } from 'lucide-react'
+import { FileText, Clock, Activity, CheckCircle, Navigation, Star } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getPartnerDashboardStats, getPartnerRecentLeads } from '@/services/partnerLeadsApi'
 import { getAvailableRides, getPartnerRides } from '@/services/partnerRideApi'
+import { getPartnerRatingStats } from '@/services/partnerRatingsApi'
 
 function getGreeting() {
   const hour = new Date().getHours()
@@ -23,6 +24,7 @@ export function PartnerDashboard() {
   const [loading, setLoading] = useState(true)
   const [rideStats, setRideStats] = useState({ available: 0, active: 0, completed: 0 })
   const [rideLoading, setRideLoading] = useState(true)
+  const [ratingStats, setRatingStats] = useState({ average: 0, count: 0 })
 
   const category = partnerProfile?.partner_category
   const businessName = partnerProfile?.business_name || 'Partner'
@@ -42,15 +44,19 @@ export function PartnerDashboard() {
 
   const fetchRideStats = useCallback(async () => {
     setRideLoading(true)
-    const [availRes, assignedRes] = await Promise.all([
+    const [availRes, assignedRes, ratingsRes] = await Promise.all([
       getAvailableRides(),
       getPartnerRides(),
+      getPartnerRatingStats(),
     ])
     const availCount = availRes.data?.length || 0
     const assigned = assignedRes.data || []
     const activeCount = assigned.filter(a => ['accepted', 'started'].includes(a.partner_status)).length
     const completedCount = assigned.filter(a => a.partner_status === 'completed').length
     setRideStats({ available: availCount, active: activeCount, completed: completedCount })
+    if (ratingsRes) {
+      setRatingStats(ratingsRes)
+    }
     setRideLoading(false)
   }, [])
 
@@ -204,6 +210,28 @@ export function PartnerDashboard() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Rating KPI */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <Star className="w-4 h-4 text-yellow-400" />
+              Your Ratings
+            </h3>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-[#202020] border border-[#2A2A2A] rounded-xl p-3 text-center">
+              <div className="text-xl font-black text-yellow-400">
+                {ratingStats.average > 0 ? `${ratingStats.average} ★` : '— ★'}
+              </div>
+              <div className="text-[10px] text-[#A1A1AA] uppercase tracking-wider mt-0.5">Average Rating</div>
+            </div>
+            <div className="bg-[#202020] border border-[#2A2A2A] rounded-xl p-3 text-center">
+              <div className="text-xl font-black text-white">{ratingStats.count}</div>
+              <div className="text-[10px] text-[#A1A1AA] uppercase tracking-wider mt-0.5">Total Reviews</div>
+            </div>
+          </div>
         </div>
 
       </div>

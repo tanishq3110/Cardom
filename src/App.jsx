@@ -12,6 +12,8 @@ import { PartnerProfile } from '@/pages/PartnerProfile'
 import { PartnerSettings } from '@/pages/PartnerSettings'
 import { PartnerRides } from '@/pages/PartnerRides'
 import { PartnerRideDetails } from '@/pages/PartnerRideDetails'
+import { PartnerNotifications } from '@/pages/PartnerNotifications'
+import { NotificationsGlobalToast } from '@/components/NotificationsGlobalToast'
 
 function ScrollToTop() {
   const { pathname } = useLocation()
@@ -82,6 +84,7 @@ export function App() {
       <AuthProvider>
         <ScrollToTop />
         <AndroidBackButton />
+        <NotificationsGlobalToast />
         <Routes>
           {/* Default entry */}
           <Route path="/" element={<Navigate to="/login" replace />} />
@@ -101,6 +104,7 @@ export function App() {
           <Route path="/settings" element={<ProtectedRoute><PartnerSettings /></ProtectedRoute>} />
           <Route path="/rides" element={<ProtectedRoute><PartnerRides /></ProtectedRoute>} />
           <Route path="/rides/:id" element={<ProtectedRoute><PartnerRideDetails /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><PartnerNotifications /></ProtectedRoute>} />
 
           {/* Dual alias support: /partner/* maps directly to protected views */}
           <Route path="/partner/dashboard" element={<ProtectedRoute><PartnerDashboard /></ProtectedRoute>} />
@@ -110,6 +114,7 @@ export function App() {
           <Route path="/partner/settings" element={<ProtectedRoute><PartnerSettings /></ProtectedRoute>} />
           <Route path="/partner/rides" element={<ProtectedRoute><PartnerRides /></ProtectedRoute>} />
           <Route path="/partner/rides/:id" element={<ProtectedRoute><PartnerRideDetails /></ProtectedRoute>} />
+          <Route path="/partner/notifications" element={<ProtectedRoute><PartnerNotifications /></ProtectedRoute>} />
 
           {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />

@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, Menu, X, LayoutDashboard, FileText, Wrench, User, Settings, LogOut } from 'lucide-react'
+import { Bell, Menu, X, LayoutDashboard, FileText, Navigation, Wrench, User, Settings, LogOut } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 
 const NAV_ITEMS = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/dashboard' },
   { label: 'Leads', icon: FileText, path: '/leads' },
+  { label: 'Rides', icon: Navigation, path: '/rides' },
+  { label: 'Notifications', icon: Bell, path: '/notifications' },
   { label: 'Services', icon: Wrench, path: '/services' },
   { label: 'Profile', icon: User, path: '/profile' },
   { label: 'Settings', icon: Settings, path: '/settings' },
@@ -13,7 +15,7 @@ const NAV_ITEMS = [
 
 export function PartnerHeader({ title, subtitle }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const { user, partnerProfile, signOut } = useAuth()
+  const { user, partnerProfile, signOut, unreadNotificationsCount = 0 } = useAuth()
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
@@ -44,10 +46,18 @@ export function PartnerHeader({ title, subtitle }) {
 
           {/* Right */}
           <div className="flex items-center gap-2">
-            <button className="relative w-8 h-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-[#202020] transition-colors">
+            <Link
+              to="/notifications"
+              className="relative w-8 h-8 rounded-lg flex items-center justify-center text-[#A1A1AA] hover:text-white hover:bg-[#202020] transition-colors"
+              aria-label="Notifications"
+            >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-orange-500" />
-            </button>
+              {unreadNotificationsCount > 0 && (
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-4 rounded-full bg-orange-500 ring-2 ring-[#111111] flex items-center justify-center text-[9px] font-bold text-white px-1">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              )}
+            </Link>
             <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center">
               <span className="text-black font-black text-xs">{initials}</span>
             </div>
