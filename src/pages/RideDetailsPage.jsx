@@ -23,6 +23,8 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { getRideBookingById, cancelRideBooking, subscribeToRideBooking } from '@/services/rideBookingApi'
+import { dispatchRide, cancelRideDispatch } from '@/services/rideDispatchApi'
+import { DISPATCH_CONFIG } from '@/config/dispatchConfig'
 import { getDriverLocation, subscribeToDriverLocation } from '@/services/rideLocationApi'
 import { getRidePartnerPaymentInfo, markPaymentAsPaid } from '@/services/ridePaymentApi'
 import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
@@ -153,6 +155,48 @@ export function RideDetailsPage() {
   const channelRef = useRef(null)
   const locationSubRef = useRef(null)
   const heartbeatRef = useRef(null)
+  const dispatchAttemptRef = useRef(0)
+  const dispatchTimerRef = useRef(null)
+
+  // Smart dispatch loop: periodically dispatch and expand radius while searching
+  useEffect(() => {
+    if (!id || booking?.status !== 'searching') {
+      if (dispatchTimerRef.current) {
+        clearTimeout(dispatchTimerRef.current)
+        dispatchTimerRef.current = null
+      }
+      return
+    }
+
+    const runDispatchLoop = async () => {
+      if (booking?.status !== 'searching') return
+
+      const radii = [
+        DISPATCH_CONFIG.MATCHING_RADIUS_KM,
+        DISPATCH_CONFIG.EXPANDED_RADIUS_KM,
+        DISPATCH_CONFIG.MAX_RADIUS_KM,
+      ]
+      const radius = radii[Math.min(dispatchAttemptRef.current, radii.length - 1)]
+
+      try {
+        await dispatchRide(id, radius)
+      } catch (e) {
+        console.warn('Dispatch retry error:', e)
+      }
+
+      dispatchAttemptRef.current += 1
+      dispatchTimerRef.current = setTimeout(runDispatchLoop, DISPATCH_CONFIG.SEARCH_RETRY_INTERVAL_MS)
+    }
+
+    runDispatchLoop()
+
+    return () => {
+      if (dispatchTimerRef.current) {
+        clearTimeout(dispatchTimerRef.current)
+        dispatchTimerRef.current = null
+      }
+    }
+  }, [id, booking?.status])
 
   const loadBooking = useCallback(async () => {
     const { data, error: err } = await getRideBookingById(id)
@@ -292,6 +336,9 @@ export function RideDetailsPage() {
   const handleCancel = async () => {
     setCancelling(true)
     setCancelError(null)
+    try {
+      await cancelRideDispatch(id)
+    } catch (_) {}
     const { error: err } = await cancelRideBooking(id)
     if (err) {
       setCancelError(err.message || 'Failed to cancel. Please try again.')

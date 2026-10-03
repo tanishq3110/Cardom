@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { createRideBooking } from '@/services/rideBookingApi'
+import { dispatchRide } from '@/services/rideDispatchApi'
 import { RIDE_TYPES, calcEstimatedFare } from '@/config/rideTypes'
 import { cn } from '@/lib/utils'
 
@@ -112,6 +113,7 @@ export function RideBookingPage() {
 
     setConfirmedBooking(data)
     setIsBooking(false)
+    dispatchRide(data.id, 5).catch((err) => console.warn('Dispatch trigger failed:', err))
   }
 
   return (
