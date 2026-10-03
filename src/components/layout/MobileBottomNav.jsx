@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 
 export function MobileBottomNav() {
   const { pathname } = useLocation()
-  const { unreadInquiriesCount = 0 } = useAuth()
+  const { unreadInquiriesCount = 0, unreadNotificationsCount = 0 } = useAuth()
 
   // Hide on car detail page on mobile to let sticky Call/Inquire actions take bottom prominence
   const isCarDetail = pathname.startsWith('/cars/') && pathname.split('/').length > 2
@@ -66,6 +66,11 @@ export function MobileBottomNav() {
                 {item.label === 'Profile' && unreadInquiriesCount > 0 && (
                   <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-orange-500 ring-2 ring-[#111111] flex items-center justify-center text-[9px] font-bold text-white px-0.5">
                     {unreadInquiriesCount > 9 ? '9+' : unreadInquiriesCount}
+                  </span>
+                )}
+                {item.label === 'Bookings' && unreadNotificationsCount > 0 && (
+                  <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-orange-500 ring-2 ring-[#111111] flex items-center justify-center text-[9px] font-bold text-white px-0.5">
+                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
                   </span>
                 )}
               </div>

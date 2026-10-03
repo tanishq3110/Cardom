@@ -205,6 +205,11 @@ export function BookingsPage() {
                         <span className="text-[#555]">Drop:</span>
                         <span className="text-white truncate">{item.drop_address}</span>
                       </div>
+                      {item.status === 'completed' && (
+                        <p className="text-[10px] text-orange-400 font-bold mt-2 pt-2 border-t border-[#1E1E1E] flex items-center gap-1">
+                          Rate your ride →
+                        </p>
+                      )}
                     </div>
                   </div>
                 )

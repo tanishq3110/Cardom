@@ -40,6 +40,8 @@ import { MobileServicesPage } from '@/pages/MobileServicesPage'
 import { MobileProfilePage } from '@/pages/MobileProfilePage'
 import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { EmailVerificationBanner } from '@/components/common/EmailVerificationBanner'
+import { NotificationsPage } from '@/pages/NotificationsPage'
+import { NotificationsGlobalToast } from '@/components/notifications/NotificationsGlobalToast'
 
 /**
  * ScrollToTop helper — ensures navigating to a new route scrolls to the top.
@@ -84,6 +86,7 @@ function App() {
           <ScrollToTop />
           <AndroidBackButton />
           <EmailVerificationBanner />
+          <NotificationsGlobalToast />
           <Routes>
             {/* ── Public routes ── */}
             <Route path="/splash" element={<SplashPage />} />
@@ -105,6 +108,7 @@ function App() {
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/cookies" element={<CookiePage />} />
+            <Route path="/notifications" element={<NotificationsPage />} />
 
             {/* ── Auth & Account routes ── */}
             <Route path="/login" element={<LoginPage />} />

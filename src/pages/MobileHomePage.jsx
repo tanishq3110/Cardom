@@ -163,7 +163,7 @@ const SHOWROOM_FALLBACK_CARS = [
 
 // ─── MobileHomePage Component ─────────────────────────────────────────────────
 export function MobileHomePage() {
-  const { user, profile } = useAuth()
+  const { user, profile, unreadNotificationsCount = 0 } = useAuth()
   const navigate = useNavigate()
   const [cars, setCars] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -223,11 +223,17 @@ export function MobileHomePage() {
           {/* Right: Notification Bell + Profile Avatar */}
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => navigate('/account')}
+              onClick={() => navigate('/notifications')}
               className="relative w-9 h-9 rounded-full bg-[#161616] border border-[#262626] flex items-center justify-center text-zinc-300 hover:text-white active:scale-95 transition-transform"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full ring-2 ring-[#0A0A0A]" />
+              {unreadNotificationsCount > 0 ? (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-500 rounded-full flex items-center justify-center text-[8px] font-bold text-white ring-2 ring-[#0A0A0A]">
+                  {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+                </span>
+              ) : (
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-orange-500 rounded-full ring-2 ring-[#0A0A0A] opacity-0" />
+              )}
             </button>
 
             <Link to="/mobile-profile">

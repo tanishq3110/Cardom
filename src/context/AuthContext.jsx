@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { fetchProfile, mapProfile } from '@/services/profileApi'
 import { fetchFavorites, toggleFavorite } from '@/services/favoritesApi'
 import { fetchUnreadInquiriesCount, subscribeToInquiries } from '@/services/inquiriesApi'
+import { getUnreadNotificationCount, subscribeToUserNotifications } from '@/services/notificationsApi'
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const AuthContext = createContext(null)
@@ -19,6 +20,7 @@ export function AuthProvider({ children }) {
   const [favoriteIds, setFavoriteIds]   = useState([])
   const [togglingCarId, setTogglingCarId] = useState(null)
   const [unreadInquiriesCount, setUnreadInquiriesCount] = useState(0)
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0)
 
   // ── Load user profile ───────────────────────────────────────────────────────
   const loadProfile = useCallback(async (currentUser) => {
@@ -54,6 +56,16 @@ export function AuthProvider({ children }) {
     setUnreadInquiriesCount(count || 0)
   }, [])
 
+  // ── Load unread notifications count ─────────────────────────────────────────────
+  const loadUnreadNotifications = useCallback(async (currentUser) => {
+    if (!currentUser) {
+      setUnreadNotificationsCount(0)
+      return
+    }
+    const count = await getUnreadNotificationCount()
+    setUnreadNotificationsCount(count || 0)
+  }, [])
+
   const refreshProfile = useCallback(async () => {
     if (user) {
       await loadProfile(user)
@@ -81,6 +93,7 @@ export function AuthProvider({ children }) {
         loadProfile(currentUser)
         loadFavorites(currentUser)
         loadUnreadInquiries(currentUser)
+        loadUnreadNotifications(currentUser)
       }
       setLoading(false)
     })
@@ -95,16 +108,18 @@ export function AuthProvider({ children }) {
         loadProfile(currentUser)
         loadFavorites(currentUser)
         loadUnreadInquiries(currentUser)
+        loadUnreadNotifications(currentUser)
       } else {
         setProfile(null)
         setFavoriteIds([])
         setUnreadInquiriesCount(0)
+        setUnreadNotificationsCount(0)
       }
       setLoading(false)
     })
 
     return () => subscription.unsubscribe()
-  }, [loadProfile, loadFavorites, loadUnreadInquiries])
+  }, [loadProfile, loadFavorites, loadUnreadInquiries, loadUnreadNotifications])
 
   // ── Password Recovery Flag ──────────────────────────────────────────────────
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false)
@@ -195,6 +210,15 @@ export function AuthProvider({ children }) {
     }
   }, [user?.id, loadUnreadInquiries])
 
+  // ── Realtime subscription for notifications ─────────────────────────
+  useEffect(() => {
+    if (!user?.id) return
+    const unsub = subscribeToUserNotifications(user.id, () => {
+      setUnreadNotificationsCount(prev => prev + 1)
+    })
+    return () => unsub()
+  }, [user?.id])
+
   // ── Check if a car is favorited ─────────────────────────────────────────────
   const isCarFavorite = useCallback((carId) => {
     if (!carId) return false
@@ -284,6 +308,9 @@ export function AuthProvider({ children }) {
         unreadInquiriesCount,
         refreshUnreadInquiries,
         setUnreadInquiriesCount,
+        unreadNotificationsCount,
+        setUnreadNotificationsCount,
+        refreshUnreadNotifications: () => loadUnreadNotifications(user),
         isEmailVerified,
         isPasswordRecovery,
         refreshUser,
@@ -309,6 +336,7 @@ export function useAuth() {
       loading: false,
       favoriteIds: [],
       unreadInquiriesCount: 0,
+      unreadNotificationsCount: 0,
       isEmailVerified: false,
       isPasswordRecovery: false,
       isCarFavorite: () => false,
@@ -316,6 +344,8 @@ export function useAuth() {
       refreshFavorites: async () => {},
       refreshUnreadInquiries: async () => {},
       setUnreadInquiriesCount: () => {},
+      setUnreadNotificationsCount: () => {},
+      refreshUnreadNotifications: async () => {},
       signUp: async () => ({ error: 'AuthProvider missing' }),
       signIn: async () => ({ error: 'AuthProvider missing' }),
       signOut: async () => {},

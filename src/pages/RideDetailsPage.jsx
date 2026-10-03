@@ -28,6 +28,8 @@ import { getRidePartnerPaymentInfo, markPaymentAsPaid } from '@/services/ridePay
 import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
 import { calculateDistanceKm, formatDistance, calculateEta } from '@/utils/geoUtils'
 import { RideMap } from '@/components/map/RideMap'
+import { getRideRating } from '@/services/rideRatingsApi'
+import { RideRatingCard } from '@/components/ride/RideRatingCard'
 import { getRideType } from '@/config/rideTypes'
 import { cn } from '@/lib/utils'
 
@@ -146,6 +148,7 @@ export function RideDetailsPage() {
   const [paymentError, setPaymentError] = useState(null)
   const [showPaymentConfirmModal, setShowPaymentConfirmModal] = useState(false)
   const [confirmMethodToMark, setConfirmMethodToMark] = useState('upi')
+  const [existingRating, setExistingRating] = useState(null)
 
   const channelRef = useRef(null)
   const locationSubRef = useRef(null)
@@ -167,6 +170,14 @@ export function RideDetailsPage() {
   useEffect(() => {
     loadBooking()
   }, [loadBooking])
+
+  useEffect(() => {
+    if (booking?.status === 'completed') {
+      getRideRating(id).then(({ data }) => {
+        if (data) setExistingRating(data)
+      })
+    }
+  }, [id, booking?.status])
 
   // Fetch assigned partner payment information once driver is assigned or completed
   useEffect(() => {
@@ -679,6 +690,14 @@ export function RideDetailsPage() {
               <p className="text-xs text-red-400 text-center">{paymentError}</p>
             )}
           </div>
+        )}
+
+        {status === 'completed' && isPaymentPaid && (
+          <RideRatingCard
+            rideId={id}
+            existingRating={existingRating}
+            onRatingSubmitted={(r) => setExistingRating(r)}
+          />
         )}
 
         {/* ── Route Addresses Card ── */}
