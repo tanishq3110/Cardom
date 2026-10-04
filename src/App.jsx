@@ -41,6 +41,31 @@ function AndroidBackButton() {
   return null
 }
 
+/**
+ * PartnerPushNotificationRouter — routes partner to /rides or /rides/:id on tapping an FCM notification.
+ */
+function PartnerPushNotificationRouter() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        const data = action?.notification?.data || {}
+        console.log('[PartnerPushRouter] Tapped notification:', data)
+        if (data.target_route) {
+          navigate(data.target_route)
+        } else if (data.ride_id) {
+          navigate(`/rides/${data.ride_id}`)
+        } else {
+          navigate('/rides')
+        }
+      })
+    }).catch(err => console.warn('[PartnerPushRouter] Listener setup error:', err))
+  }, [navigate])
+  return null
+}
+
+
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
   const location = useLocation()
@@ -84,6 +109,7 @@ export function App() {
       <AuthProvider>
         <ScrollToTop />
         <AndroidBackButton />
+        <PartnerPushNotificationRouter />
         <NotificationsGlobalToast />
         <Routes>
           {/* Default entry */}

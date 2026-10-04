@@ -3,6 +3,12 @@ import { supabase } from '@/lib/supabase'
 import { getPartnerUnreadNotificationCount } from '@/services/partnerNotificationsApi'
 import { setPartnerOffline } from '@/services/partnerAvailabilityApi'
 import { stopPartnerAvailabilityLocationTracking } from '@/services/partnerLocationApi'
+import {
+  initializePartnerPushNotifications,
+  savePartnerPushToken,
+  deactivatePartnerPushToken,
+  cleanupPartnerPushNotifications,
+} from '@/services/partnerPushNotificationsApi'
 
 export const AuthContext = createContext(null)
 
@@ -106,6 +112,24 @@ export function AuthProvider({ children }) {
     }
     return null
   }, [user, fetchProfile])
+
+  // ── Native Push Notifications (FCM) registration ────────────────────
+  useEffect(() => {
+    if (!user?.id) return
+
+    initializePartnerPushNotifications(
+      (token) => {
+        savePartnerPushToken(token)
+      },
+      (data) => {
+        console.log('[PartnerAuthContext] Push notification tapped:', data)
+      }
+    )
+
+    return () => {
+      cleanupPartnerPushNotifications()
+    }
+  }, [user?.id])
 
   const signIn = async (email, password) => {
     try {
@@ -215,8 +239,9 @@ export function AuthProvider({ children }) {
       try {
         await stopPartnerAvailabilityLocationTracking()
         await setPartnerOffline()
+        await deactivatePartnerPushToken()
       } catch (e) {
-        console.warn('Failed to take partner offline on logout:', e)
+        console.warn('Failed to take partner offline or deactivate token on logout:', e)
       }
       await supabase.auth.signOut()
     } catch (err) {
