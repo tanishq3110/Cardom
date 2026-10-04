@@ -3,8 +3,7 @@
 -- Migration: 20261005_push_notifications.sql
 -- ============================================================
 
--- ── 0. Base Notifications Table (Defensive Guard) ───────────
--- Ensures public.notifications exists even if 20261003 was not run yet
+-- 0. Base Notifications Table (Defensive Guard)
 CREATE TABLE IF NOT EXISTS public.notifications (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id     uuid REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -48,7 +47,7 @@ DO $$ BEGIN
   END;
 END $$;
 
--- ── 1. Device Push Tokens Table ─────────────────────────────
+-- 1. Device Push Tokens Table
 CREATE TABLE IF NOT EXISTS public.device_push_tokens (
   id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id      uuid REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -83,7 +82,7 @@ DO $$ BEGIN
   END IF;
 END $$;
 
--- ── 2. Push Notification Delivery Tracking ──────────────────
+-- 2. Push Notification Delivery Tracking
 CREATE TABLE IF NOT EXISTS public.push_notification_deliveries (
   id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   notification_id    uuid REFERENCES public.notifications(id) ON DELETE CASCADE,
@@ -102,7 +101,7 @@ CREATE INDEX IF NOT EXISTS idx_push_deliveries_status          ON public.push_no
 
 ALTER TABLE public.push_notification_deliveries ENABLE ROW LEVEL SECURITY;
 
--- ── 3. RPC: Register Push Token ──────────────────────────────
+-- 3. RPC: Register Push Token
 CREATE OR REPLACE FUNCTION public.register_push_token(
   p_token     text,
   p_app_type  text,
@@ -143,7 +142,7 @@ BEGIN
 END;
 $$;
 
--- ── 4. RPC: Remove Single Push Token ─────────────────────────
+-- 4. RPC: Remove Single Push Token
 CREATE OR REPLACE FUNCTION public.remove_push_token(
   p_token text
 )
@@ -170,7 +169,7 @@ BEGIN
 END;
 $$;
 
--- ── 5. RPC: Deactivate All Tokens on Logout ──────────────────
+-- 5. RPC: Deactivate All Tokens on Logout
 CREATE OR REPLACE FUNCTION public.deactivate_my_push_tokens(
   p_app_type text DEFAULT NULL
 )
@@ -211,7 +210,7 @@ GRANT EXECUTE ON FUNCTION public.register_push_token(text, text, text, text) TO 
 GRANT EXECUTE ON FUNCTION public.remove_push_token(text) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.deactivate_my_push_tokens(text) TO authenticated;
 
--- ── 6. Trigger: Dispatch Offer to Notification ────────────────
+-- 6. Trigger: Dispatch Offer to Notification
 CREATE OR REPLACE FUNCTION public.notify_on_new_ride_offer()
 RETURNS TRIGGER
 LANGUAGE plpgsql

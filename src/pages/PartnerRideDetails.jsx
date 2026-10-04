@@ -23,6 +23,11 @@ import { getPartnerProfile } from '@/services/partnerProfileApi'
 import { buildUpiUri, generateQrDataUrl } from '@/utils/upiQr'
 import { RideMap } from '@/components/map/RideMap'
 import { calculateDistanceKm, formatDistance, calculateEta } from '@/utils/geoUtils'
+import {
+  getPartnerActiveRideSos,
+  subscribeToPartnerRideSafetyEvents,
+} from '@/services/partnerSafetyApi'
+import { PartnerEmergencyAlert } from '@/components/safety/PartnerEmergencyAlert'
 
 const RIDE_TYPE_LABELS = {
   economy: 'Cardom Go',
@@ -86,6 +91,7 @@ export function PartnerRideDetails() {
   const [paymentActionError, setPaymentActionError] = useState(null)
   const [partnerUpi, setPartnerUpi] = useState({ upi_id: null, upi_qr_url: null })
   const [qrModal, setQrModal] = useState(null) // { src: string, title: string, subtitle: string }
+  const [safetyEvent, setSafetyEvent] = useState(null)
 
   const unsubscribeRef = useRef(null)
 
@@ -158,15 +164,36 @@ export function PartnerRideDetails() {
       }
     }, 4000)
 
+    // Phase 11: Fetch active SOS event and subscribe in realtime
+    getPartnerActiveRideSos(id).then(({ safetyEvent: event }) => {
+      if (event && event.status !== 'resolved') {
+        setSafetyEvent(event)
+      } else {
+        setSafetyEvent(null)
+      }
+    })
+
+    const safetyUnsub = subscribeToPartnerRideSafetyEvents(id, (payload) => {
+      if (payload.new) {
+        if (payload.new.status === 'resolved' || payload.new.status === 'cancelled') {
+          setSafetyEvent(null)
+        } else {
+          setSafetyEvent(payload.new)
+        }
+      }
+    })
+
     return () => {
       clearInterval(interval)
       if (unsubscribeRef.current) {
         unsubscribeRef.current()
         unsubscribeRef.current = null
       }
+      if (safetyUnsub) safetyUnsub()
       stopDriverLocationTracking()
     }
   }, [id, loadRide])
+
 
   // GPS Tracking lifecycle based on partnerStatus
   useEffect(() => {
@@ -352,7 +379,17 @@ export function PartnerRideDetails() {
 
         {!loading && !fetchError && ride && (
           <>
+            {/* ── Phase 11: Emergency SOS Alert Banner ── */}
+            {safetyEvent && (
+              <PartnerEmergencyAlert
+                safetyEvent={safetyEvent}
+                ride={ride}
+                onEventUpdated={setSafetyEvent}
+              />
+            )}
+
             {/* ── Location Permission Warning Banner (if denied) ── */}
+
             {locationPermissionDenied && ['accepted', 'started'].includes(partnerStatus) && (
               <div className="p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
