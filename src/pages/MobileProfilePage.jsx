@@ -175,9 +175,10 @@ export function MobileProfilePage() {
           <MenuItem icon={MapPin} label="Saved Addresses" to="/account" color="#A855F7" />
         </MenuSection>
 
-        {/* ── Support section ── */}
-        <MenuSection title="Support">
-          <MenuItem icon={Bell} label="Notifications" to="/account" color="#F59E0B" />
+        {/* ── Support & Safety section ── */}
+        <MenuSection title="Safety & Support">
+          <MenuItem icon={ShieldCheck} label="Safety Center & Contacts" to="/safety" color="#10B981" />
+          <MenuItem icon={Bell} label="Notifications" to="/notifications" color="#F59E0B" />
           <MenuItem icon={HelpCircle} label="Help & Support" to="/contact" color="#06B6D4" />
           <MenuItem icon={Settings} label="Settings" to="/account" color="#A1A1AA" />
         </MenuSection>

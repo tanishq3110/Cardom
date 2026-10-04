@@ -33,6 +33,8 @@ import { RideMap } from '@/components/map/RideMap'
 import { getRideRating } from '@/services/rideRatingsApi'
 import { RideRatingCard } from '@/components/ride/RideRatingCard'
 import { getRideType } from '@/config/rideTypes'
+import { getActiveRideSos, subscribeToRideSafetyEvents } from '@/services/rideSafetyApi'
+import { RideSafetyCard } from '@/components/ride/RideSafetyCard'
 import { cn } from '@/lib/utils'
 
 // ─── Status config ─────────────────────────────────────────────────────────────
@@ -138,6 +140,7 @@ export function RideDetailsPage() {
   const [driverLocation, setDriverLocation] = useState(null)
   const [cancelling, setCancelling] = useState(false)
   const [cancelError, setCancelError] = useState(null)
+  const [activeSos, setActiveSos] = useState(null)
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [connectionState, setConnectionState] = useState('connected')
 
@@ -233,6 +236,30 @@ export function RideDetailsPage() {
       })
     }
   }, [id, booking?.status])
+
+  // Phase 11: Fetch active SOS status & subscribe to realtime safety events
+  useEffect(() => {
+    if (!id) return
+    getActiveRideSos(id).then(({ safetyEvent }) => {
+      if (safetyEvent && safetyEvent.status !== 'resolved') {
+        setActiveSos(safetyEvent)
+      } else {
+        setActiveSos(null)
+      }
+    })
+
+    const unsub = subscribeToRideSafetyEvents(id, (payload) => {
+      if (payload.new) {
+        if (payload.new.status === 'resolved' || payload.new.status === 'cancelled') {
+          setActiveSos(null)
+        } else {
+          setActiveSos(payload.new)
+        }
+      }
+    })
+
+    return () => unsub()
+  }, [id])
 
   // Generate UPI QR code when UPI tab is active and booking is completed or due
   useEffect(() => {
@@ -561,6 +588,17 @@ export function RideDetailsPage() {
             )}
           </div>
         )}
+
+        {/* ── Phase 11: Safety & SOS (Active Ride States: driver_assigned, arriving, started) ── */}
+        {['driver_assigned', 'arriving', 'started'].includes(status) && (
+          <RideSafetyCard
+            ride={booking}
+            driverCoords={driverLocation}
+            activeSos={activeSos}
+            onSosChange={setActiveSos}
+          />
+        )}
+
 
         {/* ── Phase 5: Direct UPI / Cash Payment Card (When Ride is Completed) ── */}
         {status === 'completed' && (

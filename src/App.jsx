@@ -42,6 +42,7 @@ import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
 import { EmailVerificationBanner } from '@/components/common/EmailVerificationBanner'
 import { NotificationsPage } from '@/pages/NotificationsPage'
 import { NotificationsGlobalToast } from '@/components/notifications/NotificationsGlobalToast'
+import { SafetyCenterPage } from '@/pages/SafetyCenterPage'
 
 /**
  * ScrollToTop helper — ensures navigating to a new route scrolls to the top.
@@ -134,6 +135,8 @@ function App() {
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/cookies" element={<CookiePage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
+            <Route path="/safety" element={<SafetyCenterPage />} />
+            <Route path="/safety-center" element={<SafetyCenterPage />} />
 
             {/* ── Auth & Account routes ── */}
             <Route path="/login" element={<LoginPage />} />
