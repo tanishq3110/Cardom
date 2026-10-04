@@ -1,0 +1,13 @@
+/**
+ * Dispatch & Matching Configuration for Cardom Ride Booking.
+ */
+export const DISPATCH_CONFIG = {
+  MATCHING_RADIUS_KM: 5,
+  EXPANDED_RADIUS_KM: 10,
+  MAX_RADIUS_KM: 15,
+  OFFER_TIMEOUT_SECONDS: 20,
+  OFFER_TIMEOUT_MS: 20000,
+  SEARCH_RETRY_INTERVAL_MS: 10000,
+  LOCATION_MAX_AGE_SECONDS: 60,
+}
+

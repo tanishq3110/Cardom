@@ -4,6 +4,13 @@ import { fetchProfile, mapProfile } from '@/services/profileApi'
 import { fetchFavorites, toggleFavorite } from '@/services/favoritesApi'
 import { fetchUnreadInquiriesCount, subscribeToInquiries } from '@/services/inquiriesApi'
 import { getUnreadNotificationCount, subscribeToUserNotifications } from '@/services/notificationsApi'
+import {
+  initializePushNotifications,
+  savePushToken,
+  deactivatePushToken,
+  cleanupPushNotifications,
+  getCurrentPushToken,
+} from '@/services/pushNotificationsApi'
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 const AuthContext = createContext(null)
@@ -219,6 +226,25 @@ export function AuthProvider({ children }) {
     return () => unsub()
   }, [user?.id])
 
+  // ── Native Push Notifications (FCM) registration ────────────────────
+  useEffect(() => {
+    if (!user?.id) return
+
+    initializePushNotifications(
+      (token) => {
+        savePushToken(token, 'user')
+      },
+      (data) => {
+        // Notification action handling can also be coordinated with Router
+        console.log('[AuthContext] Push notification tapped with payload:', data)
+      }
+    )
+
+    return () => {
+      cleanupPushNotifications()
+    }
+  }, [user?.id])
+
   // ── Check if a car is favorited ─────────────────────────────────────────────
   const isCarFavorite = useCallback((carId) => {
     if (!carId) return false
@@ -285,6 +311,12 @@ export function AuthProvider({ children }) {
 
   // ── Sign Out ────────────────────────────────────────────────────────────────
   const signOut = useCallback(async () => {
+    try {
+      const token = getCurrentPushToken()
+      await deactivatePushToken(token, 'user')
+    } catch (e) {
+      console.warn('[Cardom Auth] Failed to deactivate push token:', e)
+    }
     const { error } = await supabase.auth.signOut()
     if (error) console.error('[Cardom Auth] signOut error:', error.message)
     setProfile(null)

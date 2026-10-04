@@ -77,6 +77,30 @@ function AndroidBackButton() {
   return null
 }
 
+/**
+ * PushNotificationRouter — routes user to the target screen when tapping an FCM push notification.
+ */
+function PushNotificationRouter() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    // Dynamic import to avoid issues on web
+    import('@capacitor/push-notifications').then(({ PushNotifications }) => {
+      PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+        const data = action?.notification?.data || {}
+        console.log('[PushRouter] Tapped notification:', data)
+        if (data.target_route) {
+          navigate(data.target_route)
+        } else if (data.ride_id) {
+          navigate(`/ride/${data.ride_id}`)
+        }
+      })
+    }).catch(err => console.warn('[PushRouter] Listener setup error:', err))
+  }, [navigate])
+  return null
+}
+
+
 function App() {
   return (
     <BrowserRouter>
@@ -85,6 +109,7 @@ function App() {
         <ComparisonProvider>
           <ScrollToTop />
           <AndroidBackButton />
+          <PushNotificationRouter />
           <EmailVerificationBanner />
           <NotificationsGlobalToast />
           <Routes>
