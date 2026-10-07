@@ -244,3 +244,4 @@ export function RideSafetyCard({
     </div>
   )
 }
+
