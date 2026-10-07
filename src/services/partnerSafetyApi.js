@@ -96,3 +96,4 @@ export async function resolveRideSos(safetyEventId, note = 'Resolved by partner'
     return { data: null, error: err?.message || err }
   }
 }
+
