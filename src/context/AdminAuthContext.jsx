@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
-import { checkAdminAccess, loginAdmin, logoutAdmin, bootstrapFirstAdmin } from '@/services/adminAuthApi'
+import { checkAdminAccess, loginAdmin, logoutAdmin, bootstrapFirstAdmin, checkCanBootstrap } from '@/services/adminAuthApi'
 
 const AdminAuthContext = createContext(null)
 
@@ -34,7 +34,8 @@ export function AdminAuthProvider({ children }) {
       } else {
         setAdminProfile(null)
         setRole(null)
-        setCanBootstrap(false)
+        const canBoot = await checkCanBootstrap()
+        setCanBootstrap(canBoot)
       }
     } catch (err) {
       console.error('[AdminAuthProvider] refreshAdmin error:', err)

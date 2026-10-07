@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '@/context/AdminAuthContext'
 import { supabase } from '@/lib/supabase'
@@ -15,6 +15,12 @@ export function LoginPage() {
   const [isBootstrapping, setIsBootstrapping] = useState(Boolean(location.state?.bootstrap || canBootstrap))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  useEffect(() => {
+    if (canBootstrap) {
+      setIsBootstrapping(true)
+    }
+  }, [canBootstrap])
 
   const handleSubmit = async (e) => {
     e.preventDefault()
