@@ -28,9 +28,17 @@ export function LoginPage() {
         return
       }
 
-      // First attempt to sign in; if user does not exist, auto-create the Supabase account
-      let loginRes = await login(email, password)
-      if (loginRes.error) {
+      // 1. Try signing in first (in case this email is already registered in Supabase Auth)
+      let sessionActive = false
+      const { data: signInData, error: signInErr } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
+
+      if (!signInErr && signInData?.session) {
+        sessionActive = true
+      } else {
+        // 2. Not signed in, try signing up as a new user in Supabase Auth
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -40,26 +48,36 @@ export function LoginPage() {
         })
 
         if (signUpErr) {
-          setError(signUpErr.message || 'Unable to authenticate or register admin credentials.')
+          setError(signUpErr.message || 'Unable to register admin credentials.')
           setLoading(false)
           return
         }
 
-        if (!signUpData?.session) {
-          setError('Admin registered! If email confirmation is enabled on your Supabase project, please verify your email before signing in.')
+        if (signUpData?.session) {
+          sessionActive = true
+        } else if (signUpData?.user && !signUpData?.session) {
+          setError('Admin user registered! If Supabase email confirmation is enabled, please verify your email before proceeding, or check your Supabase Auth dashboard.')
           setLoading(false)
           return
         }
       }
 
-      const bootRes = await bootstrap(fullName.trim())
-      if (!bootRes.success) {
-        setError(bootRes.error || 'Failed to initialize Super Admin.')
+      if (!sessionActive) {
+        setError('Authentication session could not be established. Please check your credentials.')
         setLoading(false)
         return
       }
 
-      navigate('/dashboard')
+      // 3. Promote authenticated user to first Super Admin via RPC
+      const bootRes = await bootstrap(fullName.trim())
+      setLoading(false)
+
+      if (!bootRes.success) {
+        setError(bootRes.error || 'Failed to initialize Super Admin.')
+        return
+      }
+
+      navigate('/dashboard', { replace: true })
       return
     }
 
@@ -92,10 +110,60 @@ export function LoginPage() {
 
         {/* Form Container */}
         <div className="rounded-2xl bg-[#121212] border border-[#242424] p-8 shadow-2xl space-y-5">
+          {/* Mode Switcher Tabs */}
+          <div className="flex rounded-xl bg-[#181818] p-1 border border-[#282828]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsBootstrapping(false)
+                setError(null)
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                !isBootstrapping
+                  ? 'bg-orange-500 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsBootstrapping(true)
+                setError(null)
+              }}
+              className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                isBootstrapping
+                  ? 'bg-orange-500 text-black shadow-md'
+                  : 'text-zinc-400 hover:text-white'
+              }`}
+            >
+              First-Time Setup
+            </button>
+          </div>
+
           {error && (
-            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>{error}</span>
+            <div className="p-3.5 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs space-y-1.5">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="font-semibold">{error}</span>
+              </div>
+              {!isBootstrapping && error.toLowerCase().includes('credential') && (
+                <p className="text-[11px] text-zinc-400 pl-6">
+                  First time setting up? Switch to the{' '}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsBootstrapping(true)
+                      setError(null)
+                    }}
+                    className="text-orange-400 hover:underline font-bold"
+                  >
+                    First-Time Setup
+                  </button>{' '}
+                  tab above to create and initialize the first Super Admin account.
+                </p>
+              )}
             </div>
           )}
 
@@ -103,9 +171,9 @@ export function LoginPage() {
             <div className="p-3.5 rounded-xl bg-orange-500/10 border border-orange-500/25 text-orange-400 text-xs flex items-start gap-2.5">
               <Sparkles className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <div>
-                <p className="font-bold">Initial System Bootstrap</p>
+                <p className="font-bold">First-Time Super Admin Bootstrap</p>
                 <p className="text-zinc-400 mt-0.5 leading-relaxed">
-                  No Super Administrator exists yet. Enter your credentials to claim the initial Super Admin account for this Cardom installation.
+                  Enter your details below. If you already have a Cardom account, enter its credentials; otherwise, a new Super Admin account will be created automatically.
                 </p>
               </div>
             </div>
