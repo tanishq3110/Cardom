@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useAdminAuth } from '@/context/AdminAuthContext'
+import { supabase } from '@/lib/supabase'
 import { Shield, Lock, Mail, AlertCircle, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
 export function LoginPage() {
@@ -27,12 +28,28 @@ export function LoginPage() {
         return
       }
 
-      // First sign in or sign up, then call bootstrap
-      const loginRes = await login(email, password)
+      // First attempt to sign in; if user does not exist, auto-create the Supabase account
+      let loginRes = await login(email, password)
       if (loginRes.error) {
-        setError(loginRes.error.message || 'Unable to authenticate with provided credentials.')
-        setLoading(false)
-        return
+        const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: { full_name: fullName.trim() },
+          },
+        })
+
+        if (signUpErr) {
+          setError(signUpErr.message || 'Unable to authenticate or register admin credentials.')
+          setLoading(false)
+          return
+        }
+
+        if (!signUpData?.session) {
+          setError('Admin registered! If email confirmation is enabled on your Supabase project, please verify your email before signing in.')
+          setLoading(false)
+          return
+        }
       }
 
       const bootRes = await bootstrap(fullName.trim())
