@@ -1,9 +1,41 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import {
+  MapPin,
+  Bell,
+  Search,
+  Mic,
+  SlidersHorizontal,
+  Navigation,
+  Car,
+  Tag,
+  Shield,
+  CreditCard,
+  Wrench,
+  ArrowRight,
+  Sparkles,
+  ChevronRight,
+  ShieldCheck,
+  RefreshCw,
+  FileCheck2,
+  DollarSign,
+  Heart,
+  Eye,
+} from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { fetchCars } from '@/services/carsApi'
 import { cn } from '@/lib/utils'
+
+// ─── 6 Core Automotive & Mobility Services ──────────────────────────────────
+const CORE_SERVICES = [
+  { id: 'ride', label: 'Ride Booking', to: '/ride', icon: Navigation, highlight: true, badge: '24/7' },
+  { id: 'buy', label: 'Buy Cars', to: '/cars', icon: Car },
+  { id: 'sell', label: 'Sell Car', to: '/sell', icon: Tag },
+  { id: 'insurance', label: 'Insurance', to: '/insurance', icon: Shield },
+  { id: 'finance', label: 'Finance', to: '/finance', icon: CreditCard },
+  { id: 'service', label: 'Service', to: '/service', icon: Wrench },
+]
 
 // Fallback showroom cars for instant display if database is loading/empty
 const SHOWROOM_FALLBACK_CARS = [
@@ -67,14 +99,14 @@ const SHOWROOM_FALLBACK_CARS = [
 
 // Popular Indian automotive brands
 const POPULAR_BRANDS = [
-  { name: 'Tata', icon: 'directions_car' },
-  { name: 'Mahindra', icon: 'local_shipping' },
-  { name: 'Maruti', icon: 'speed' },
-  { name: 'Hyundai', icon: 'commute' },
-  { name: 'Kia', icon: 'electric_car' },
-  { name: 'Toyota', icon: 'car_repair' },
-  { name: 'Honda', icon: 'minor_crash' },
-  { name: 'BMW', icon: 'stars' },
+  { name: 'Tata' },
+  { name: 'Mahindra' },
+  { name: 'Maruti' },
+  { name: 'Hyundai' },
+  { name: 'Kia' },
+  { name: 'Toyota' },
+  { name: 'Honda' },
+  { name: 'BMW' },
 ]
 
 // Quick filter tags matching Stitch
@@ -141,7 +173,6 @@ export function MobileHomePage() {
 
   const calculateEmi = (amount) => {
     const num = Number(amount) || 0
-    // Rough estimate: ~₹1,240 per lakh for 7 years @ 8.5%
     const lakhs = num / 100000
     const emi = Math.round(lakhs * 1240)
     return emi > 0 ? emi.toLocaleString('en-IN') : '14,850'
@@ -150,16 +181,14 @@ export function MobileHomePage() {
   const displayLocation = profile?.location || 'Amritsar, PB'
 
   return (
-    <div className="min-h-dvh bg-[#131313] text-[#e5e2e1] pb-24 selection:bg-[#ff6a00] selection:text-black">
+    <div className="min-h-dvh bg-[#131313] text-[#e5e2e1] pb-28 selection:bg-[#ff6a00] selection:text-black">
       {/* ── Fixed Top Header Bar ── */}
-      <header className="sticky top-0 inset-x-0 z-40 bg-[#131313]/90 backdrop-blur-xl border-b border-white/5 pt-safe">
+      <header className="sticky top-0 inset-x-0 z-40 bg-[#131313]/95 backdrop-blur-xl border-b border-white/5 pt-safe">
         <div className="h-16 px-4 flex items-center justify-between gap-2 max-w-lg mx-auto">
           {/* Brand Logo & Name */}
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-[#ff6a00] flex items-center justify-center shadow-[0_0_14px_rgba(255,106,0,0.5)]">
-              <span className="material-symbols-outlined text-[20px] text-black font-black">
-                electric_bolt
-              </span>
+              <span className="text-black font-black text-lg">C</span>
             </div>
             <span className="font-display text-xl font-black text-white tracking-tight">
               CARDOM
@@ -169,15 +198,11 @@ export function MobileHomePage() {
           {/* Location Selector Chip */}
           <button
             onClick={() => navigate('/cars')}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#201f1f] hover:bg-[#2a2a2a] transition-colors border border-white/5 text-xs text-[#e5e2e1] font-medium"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#201f1f] hover:bg-[#2a2a2a] transition-colors border border-white/5 text-xs text-[#e5e2e1] font-medium"
           >
-            <span className="material-symbols-outlined text-[#ff6a00] text-[16px]">
-              location_on
-            </span>
+            <MapPin className="w-3.5 h-3.5 text-[#ff6a00]" />
             <span className="truncate max-w-[110px]">{displayLocation}</span>
-            <span className="material-symbols-outlined text-[#c6c6c7] text-[14px]">
-              expand_more
-            </span>
+            <ChevronRight className="w-3.5 h-3.5 text-[#c6c6c7] rotate-90" />
           </button>
 
           {/* Right Action Icons: Notification Bell & Profile Avatar */}
@@ -187,9 +212,9 @@ export function MobileHomePage() {
               className="relative w-10 h-10 flex items-center justify-center rounded-full bg-[#201f1f] hover:bg-[#2a2a2a] text-[#e5e2e1] transition-colors border border-white/5"
               aria-label="Notifications"
             >
-              <span className="material-symbols-outlined text-[20px]">notifications</span>
+              <Bell className="w-4 h-4 text-[#c6c6c7]" />
               {unreadNotificationsCount > 0 && (
-                <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#ff6a00] ring-2 ring-[#131313]" />
+                <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-[#ff6a00] ring-2 ring-[#131313]" />
               )}
             </button>
 
@@ -204,7 +229,7 @@ export function MobileHomePage() {
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <div className="w-full h-full bg-gradient-to-tr from-[#ff6a00] to-amber-500 flex items-center justify-center font-black text-black">
+                <div className="w-full h-full bg-gradient-to-tr from-[#ff6a00] to-amber-500 flex items-center justify-center font-black text-black text-xs">
                   {(profile?.full_name || user?.email || 'C')[0].toUpperCase()}
                 </div>
               )}
@@ -214,22 +239,20 @@ export function MobileHomePage() {
       </header>
 
       {/* ── Main Content Column ── */}
-      <main className="max-w-lg mx-auto px-4 pt-3 space-y-6">
-        {/* ── Search Bar Module with Mic & Filters ── */}
+      <main className="max-w-lg mx-auto px-4 pt-3 space-y-5">
+        {/* ── Search Bar Module ── */}
         <section>
           <form
             onSubmit={handleSearch}
             className="flex items-center gap-2 bg-[#201f1f] border border-white/10 rounded-2xl p-1.5 shadow-lg focus-within:border-[#ff6a00] transition-colors"
           >
             <div className="flex items-center flex-1 pl-2.5">
-              <span className="material-symbols-outlined text-[#c6c6c7] text-[22px] mr-2">
-                search
-              </span>
+              <Search className="w-4 h-4 text-[#c6c6c7] mr-2" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search 3,450+ verified pre-owned cars..."
+                placeholder="Search verified cars or book rides..."
                 className="w-full bg-transparent text-xs text-white placeholder-[#888888] focus:outline-none"
               />
             </div>
@@ -239,19 +262,19 @@ export function MobileHomePage() {
               className="w-8 h-8 rounded-xl flex items-center justify-center text-[#c6c6c7] hover:text-white transition-colors"
               title="Voice Search"
             >
-              <span className="material-symbols-outlined text-[19px]">mic</span>
+              <Mic className="w-4 h-4" />
             </button>
             <button
               type="submit"
               className="w-9 h-9 rounded-xl bg-[#ff6a00] text-black flex items-center justify-center shadow-[0_2px_10px_rgba(255,106,0,0.3)] transition-transform active:scale-95"
               title="Apply Filters"
             >
-              <span className="material-symbols-outlined text-[20px] font-bold">tune</span>
+              <SlidersHorizontal className="w-4 h-4 font-bold" />
             </button>
           </form>
 
           {/* Quick Filter Horizontal Scroll Rail */}
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pt-3 -mx-4 px-4">
+          <div className="flex gap-2 overflow-x-auto no-scrollbar pt-2.5 -mx-4 px-4">
             {QUICK_TAGS.map((tag) => (
               <button
                 key={tag.label}
@@ -264,7 +287,82 @@ export function MobileHomePage() {
           </div>
         </section>
 
-        {/* ── Certified Pre-Owned Studio Hero Card ── */}
+        {/* ── Core Ecosystem Services (6-Tile Grid with Ride Booking) ── */}
+        <section>
+          <div className="grid grid-cols-3 gap-2.5">
+            {CORE_SERVICES.map((s) => {
+              const Icon = s.icon
+              return (
+                <Link
+                  key={s.id}
+                  to={s.to}
+                  className={cn(
+                    'flex flex-col items-center justify-center py-3.5 px-2 rounded-2xl border transition-all active:scale-[0.96] group relative',
+                    s.highlight
+                      ? 'bg-[#201f1f] border-[#ff6a00]/40 shadow-md shadow-orange-500/15'
+                      : 'bg-[#1c1b1b] border-white/5 hover:border-white/20'
+                  )}
+                >
+                  {s.badge && (
+                    <span className="absolute -top-1.5 right-2 px-1.5 py-0.2 rounded-full bg-[#ff6a00] text-black text-[9px] font-black tracking-wider">
+                      {s.badge}
+                    </span>
+                  )}
+                  <div
+                    className={cn(
+                      'w-10 h-10 rounded-xl flex items-center justify-center transition-all mb-1.5',
+                      s.highlight
+                        ? 'bg-[#ff6a00] text-black shadow-md'
+                        : 'bg-[#201f1f] text-[#ff6a00] group-hover:bg-[#ff6a00]/15'
+                    )}
+                  >
+                    <Icon className="w-5 h-5 stroke-[2.2]" />
+                  </div>
+                  <span
+                    className={cn(
+                      'text-[11px] font-bold text-center leading-tight tracking-tight',
+                      s.highlight ? 'text-white' : 'text-[#e5e2e1]'
+                    )}
+                  >
+                    {s.label}
+                  </span>
+                </Link>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ── Fast Ride Booking Shortcut Banner (Hero Mobility Callout) ── */}
+        <section>
+          <Link
+            to="/ride"
+            className="flex items-center justify-between p-4 rounded-3xl bg-gradient-to-r from-[#201f1f] via-[#1c1b1b] to-[#161616] border border-[#ff6a00]/40 active:scale-[0.98] transition-all shadow-xl group relative overflow-hidden"
+          >
+            <div className="absolute -right-8 -top-8 w-28 h-28 bg-[#ff6a00]/15 rounded-full blur-2xl pointer-events-none" />
+            <div className="flex items-center gap-3.5 relative z-10">
+              <div className="w-11 h-11 rounded-2xl bg-[#ff6a00] text-black flex items-center justify-center font-bold shadow-[0_0_16px_rgba(255,106,0,0.4)] group-hover:scale-105 transition-transform">
+                <Navigation className="w-6 h-6 stroke-[2.2]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <p className="text-white font-extrabold text-sm">Need a Fast Ride?</p>
+                  <span className="px-1.5 py-0.2 rounded bg-[#4ae176]/20 text-[#4ae176] text-[9px] font-bold">
+                    ACTIVE NOW
+                  </span>
+                </div>
+                <p className="text-[#c6c6c7] text-[11px] mt-0.5">
+                  Doorstep pickup, Airport & City rides in 1 tap
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1 text-[#ff6a00] font-bold text-xs bg-[#2a2a2a] px-3 py-1.5 rounded-xl border border-white/5 relative z-10 group-hover:bg-[#ff6a00] group-hover:text-black transition-colors">
+              <span>Book Ride</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </div>
+          </Link>
+        </section>
+
+        {/* ── Certified Pre-Owned Studio Hero Card (Stitch Design) ── */}
         <section className="relative rounded-3xl overflow-hidden bg-gradient-to-br from-[#1c1b1b] via-[#201f1f] to-[#0e0e0e] border border-white/10 shadow-2xl p-5">
           {/* Ambient Glow */}
           <div className="absolute -right-16 -top-16 w-52 h-52 bg-[#ff6a00]/15 rounded-full blur-3xl pointer-events-none" />
@@ -288,23 +386,17 @@ export function MobileHomePage() {
           {/* 3 Quick Value Badges */}
           <div className="grid grid-cols-3 gap-2 py-3.5 my-2 border-y border-white/5">
             <div className="flex flex-col items-center text-center">
-              <span className="material-symbols-outlined text-[#ff6a00] text-[18px]">
-                verified
-              </span>
+              <ShieldCheck className="w-5 h-5 text-[#ff6a00]" />
               <span className="text-[10px] text-white font-bold mt-1">180+ Point</span>
               <span className="text-[9px] text-[#c6c6c7]">Inspection</span>
             </div>
             <div className="flex flex-col items-center text-center border-x border-white/5">
-              <span className="material-symbols-outlined text-[#4ae176] text-[18px]">
-                published_with_changes
-              </span>
+              <RefreshCw className="w-5 h-5 text-[#4ae176]" />
               <span className="text-[10px] text-white font-bold mt-1">7 Days Return</span>
               <span className="text-[9px] text-[#c6c6c7]">100% Refund</span>
             </div>
             <div className="flex flex-col items-center text-center">
-              <span className="material-symbols-outlined text-[#ff6a00] text-[18px]">
-                assignment_turned_in
-              </span>
+              <FileCheck2 className="w-5 h-5 text-[#ff6a00]" />
               <span className="text-[10px] text-white font-bold mt-1">Free RC Transfer</span>
               <span className="text-[9px] text-[#c6c6c7]">Doorstep Pickup</span>
             </div>
@@ -317,15 +409,13 @@ export function MobileHomePage() {
               className="py-2.5 px-4 rounded-xl bg-[#ff6a00] hover:bg-[#ff6a00]/90 text-black font-bold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-orange-500/20 active:scale-95 transition-all"
             >
               <span>Explore Showroom</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={() => navigate('/sell')}
               className="py-2.5 px-4 rounded-xl bg-[#2a2a2a] hover:bg-[#353534] text-white font-bold text-xs flex items-center justify-center gap-1.5 border border-white/10 active:scale-95 transition-all"
             >
-              <span className="material-symbols-outlined text-[16px] text-[#ff6a00]">
-                calculate
-              </span>
+              <Tag className="w-3.5 h-3.5 text-[#ff6a00]" />
               <span>Value My Car</span>
             </button>
           </div>
@@ -341,7 +431,7 @@ export function MobileHomePage() {
               to="/cars"
               className="text-xs text-[#ff6a00] font-bold hover:underline flex items-center gap-0.5"
             >
-              View All <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              View All <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -353,9 +443,7 @@ export function MobileHomePage() {
                 className="flex flex-col items-center justify-center py-3 px-2 rounded-2xl bg-[#1c1b1b] border border-white/5 hover:border-[#ff6a00]/40 active:scale-95 transition-all group shadow-sm"
               >
                 <div className="w-10 h-10 rounded-xl bg-[#201f1f] group-hover:bg-[#ff6a00]/10 border border-white/5 group-hover:border-[#ff6a00]/30 flex items-center justify-center text-[#ff6a00] transition-colors mb-1.5">
-                  <span className="material-symbols-outlined text-[22px]">
-                    {brand.icon}
-                  </span>
+                  <Car className="w-5 h-5 stroke-[2]" />
                 </div>
                 <span className="text-[11px] font-bold text-[#e5e2e1] group-hover:text-white truncate">
                   {brand.name}
@@ -407,7 +495,7 @@ export function MobileHomePage() {
           </div>
         </section>
 
-        {/* ── Cardom Certified Vehicles Carousel ── */}
+        {/* ── Cardom Certified Vehicles Showcase ── */}
         <section className="pt-1">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -422,7 +510,7 @@ export function MobileHomePage() {
               to="/cars"
               className="text-xs text-[#ff6a00] font-bold hover:underline flex items-center gap-0.5"
             >
-              All Cars <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+              All Cars <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 
@@ -463,9 +551,7 @@ export function MobileHomePage() {
 
                     {/* Quick location tag */}
                     <div className="absolute bottom-3 left-3 flex items-center gap-1 text-[11px] text-zinc-300 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-md">
-                      <span className="material-symbols-outlined text-[13px] text-[#ff6a00]">
-                        location_on
-                      </span>
+                      <MapPin className="w-3 h-3 text-[#ff6a00]" />
                       <span>{car.location || displayLocation}</span>
                     </div>
                   </div>
@@ -532,9 +618,7 @@ export function MobileHomePage() {
                         }}
                         className="py-2 px-3 rounded-xl bg-[#2a2a2a] hover:bg-[#353534] text-xs font-bold text-[#e5e2e1] transition-colors flex items-center justify-center gap-1.5"
                       >
-                        <span className="material-symbols-outlined text-sm text-[#ff6a00]">
-                          description
-                        </span>
+                        <FileCheck2 className="w-3.5 h-3.5 text-[#ff6a00]" />
                         <span>Report</span>
                       </button>
                       <button
@@ -545,9 +629,7 @@ export function MobileHomePage() {
                         }}
                         className="py-2 px-3 rounded-xl bg-[#ff6a00] hover:bg-[#ff6a00]/90 text-xs font-bold text-black transition-colors flex items-center justify-center gap-1.5 shadow-sm"
                       >
-                        <span className="material-symbols-outlined text-sm font-bold">
-                          directions_car
-                        </span>
+                        <Car className="w-3.5 h-3.5" />
                         <span>Book Drive</span>
                       </button>
                     </div>
@@ -556,32 +638,6 @@ export function MobileHomePage() {
               )
             })}
           </div>
-        </section>
-
-        {/* ── Fast Ride Booking Shortcut ── */}
-        <section>
-          <Link
-            to="/ride"
-            className="flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-[#201f1f] to-[#1c1b1b] border border-[#ff6a00]/30 active:scale-[0.98] transition-all shadow-md group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#ff6a00]/15 border border-[#ff6a00]/30 flex items-center justify-center text-[#ff6a00] group-hover:scale-105 transition-transform shadow-[0_0_12px_rgba(255,106,0,0.2)]">
-                <span className="material-symbols-outlined text-[22px]">navigation</span>
-              </div>
-              <div>
-                <p className="text-white font-extrabold text-sm">Need a Fast Ride?</p>
-                <p className="text-[#c6c6c7] text-[11px]">
-                  Economy, Comfort & XL rides available across Punjab
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-[#ff6a00] font-bold text-xs">
-              <span>Book</span>
-              <span className="material-symbols-outlined text-[16px] group-hover:translate-x-1 transition-transform">
-                arrow_forward
-              </span>
-            </div>
-          </Link>
         </section>
 
         {/* ── Why 4.8L+ Indians Choose Cardom Trust Cards ── */}
@@ -595,7 +651,7 @@ export function MobileHomePage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <div className="p-3.5 rounded-xl bg-[#1c1b1b] border border-white/5 flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#201f1f] flex items-center justify-center text-[#ff6a00] flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px]">verified_user</span>
+                <ShieldCheck className="w-4 h-4" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">180+ Point Digital Check</h4>
@@ -607,7 +663,7 @@ export function MobileHomePage() {
 
             <div className="p-3.5 rounded-xl bg-[#1c1b1b] border border-white/5 flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#201f1f] flex items-center justify-center text-[#4ae176] flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px]">published_with_changes</span>
+                <RefreshCw className="w-4 h-4" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">7 Days Money Back Guarantee</h4>
@@ -619,7 +675,7 @@ export function MobileHomePage() {
 
             <div className="p-3.5 rounded-xl bg-[#1c1b1b] border border-white/5 flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#201f1f] flex items-center justify-center text-[#ff6a00] flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px]">shield</span>
+                <Shield className="w-4 h-4" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">1-Year Pan-India Warranty</h4>
@@ -631,7 +687,7 @@ export function MobileHomePage() {
 
             <div className="p-3.5 rounded-xl bg-[#1c1b1b] border border-white/5 flex items-start gap-3">
               <div className="w-9 h-9 rounded-lg bg-[#201f1f] flex items-center justify-center text-[#4ae176] flex-shrink-0">
-                <span className="material-symbols-outlined text-[20px]">currency_rupee</span>
+                <DollarSign className="w-4 h-4" />
               </div>
               <div>
                 <h4 className="text-xs font-bold text-white">Zero Hidden Charges</h4>

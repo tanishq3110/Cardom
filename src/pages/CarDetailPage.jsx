@@ -836,3 +836,4 @@ export function CarDetailPage() {
     </div>
   )
 }
+

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Heart, Check, Layers } from 'lucide-react'
+import { Heart, Check, Layers, MapPin, Car, ArrowRight } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { useComparison } from '@/context/ComparisonContext'
 import { isListingNew } from '@/utils/dateUtils'
@@ -161,10 +161,8 @@ export function CarCard({ car, delay = 0 }) {
               </p>
             </div>
             {car.location && (
-              <span className="text-[10px] text-[#c6c6c7] flex items-center gap-0.5 bg-[#201f1f] border border-white/5 px-2 py-0.5 rounded-md flex-shrink-0">
-                <span className="material-symbols-outlined text-[13px] text-[#ff6a00]">
-                  location_on
-                </span>
+              <span className="text-[10px] text-[#c6c6c7] flex items-center gap-1 bg-[#201f1f] border border-white/5 px-2 py-0.5 rounded-md flex-shrink-0">
+                <MapPin className="w-3 h-3 text-[#ff6a00]" />
                 <span className="truncate max-w-[90px]">{car.location}</span>
               </span>
             )}
@@ -219,9 +217,7 @@ export function CarCard({ car, delay = 0 }) {
               }}
               className="py-2 px-3 rounded-xl bg-[#2a2a2a] hover:bg-[#353534] text-xs font-bold text-[#e5e2e1] transition-colors flex items-center justify-center gap-1.5 active:scale-95"
             >
-              <span className="material-symbols-outlined text-sm text-[#ff6a00]">
-                directions_car
-              </span>
+              <Car className="w-3.5 h-3.5 text-[#ff6a00]" />
               <span>Test Drive</span>
             </button>
             <button
@@ -233,9 +229,7 @@ export function CarCard({ car, delay = 0 }) {
               className="py-2 px-3 rounded-xl bg-[#ff6a00] hover:bg-[#ff6a00]/90 text-xs font-bold text-black transition-colors flex items-center justify-center gap-1.5 shadow-sm active:scale-95"
             >
               <span>View Details</span>
-              <span className="material-symbols-outlined text-sm font-bold">
-                arrow_forward
-              </span>
+              <ArrowRight className="w-3.5 h-3.5 stroke-[2.5]" />
             </button>
           </div>
         </div>

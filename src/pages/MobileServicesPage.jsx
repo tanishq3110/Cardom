@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  Navigation,
   Shield,
   CreditCard,
   Wrench,
@@ -14,6 +15,17 @@ import {
 
 // ─── All service cards matching reference image ───────────────────────────────
 const SERVICES = [
+  {
+    id: 'ride',
+    label: 'Ride Booking',
+    desc: 'Doorstep pickup, City & Airport cabs 24/7',
+    to: '/ride',
+    icon: Navigation,
+    color: '#ff6a00',
+    bg: 'rgba(255,106,0,0.15)',
+    border: 'rgba(255,106,0,0.3)',
+    popular: true,
+  },
   {
     id: 'insurance',
     label: 'Insurance',
@@ -86,90 +98,81 @@ export function MobileServicesPage() {
   )
 
   return (
-    <div className="min-h-dvh bg-[#0A0A0A] text-white flex flex-col pb-24">
+    <div className="min-h-dvh bg-[#131313] text-[#e5e2e1] flex flex-col pb-28">
       {/* ── Header ── */}
-      <div className="sticky top-0 z-30 bg-[#0A0A0A]/95 backdrop-blur-xl border-b border-[#1A1A1A] px-4 pt-12 pb-4">
-        <h1 className="text-2xl font-black text-white mb-4">Services</h1>
+      <div className="sticky top-0 z-30 bg-[#131313]/95 backdrop-blur-xl border-b border-white/5 px-4 pt-12 pb-4">
+        <h1 className="font-display text-2xl font-black text-white mb-4">Services</h1>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#555]" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888]" />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search services..."
-            className="w-full pl-10 pr-4 py-3 bg-[#1A1A1A] border border-[#2A2A2A] rounded-xl text-sm text-white placeholder:text-[#555] focus:outline-none focus:border-orange-500 transition-colors"
+            placeholder="Search automotive & mobility services..."
+            className="w-full pl-10 pr-4 py-2.5 bg-[#201f1f] border border-white/10 rounded-xl text-xs text-white placeholder-[#666] focus:outline-none focus:border-[#ff6a00] transition-colors"
           />
         </div>
       </div>
 
-      <div className="flex-1 px-4 pt-5">
-        {/* Services Grid */}
-        {filtered.length > 0 ? (
-          <div className="grid grid-cols-2 gap-3">
-            {filtered.map((service) => {
-              const Icon = service.icon
-              return (
-                <Link
-                  key={service.id}
-                  to={service.to}
-                  className="flex flex-col gap-3 p-4 rounded-2xl active:scale-[0.98] transition-all"
-                  style={{
-                    background: service.bg,
-                    border: `1px solid ${service.border}`,
-                  }}
-                >
-                  {/* Icon */}
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                    style={{
-                      background: 'rgba(0,0,0,0.3)',
-                      border: `1px solid ${service.border}`,
-                    }}
-                  >
-                    <Icon className="w-6 h-6" style={{ color: service.color }} />
-                  </div>
+      {/* ── Services list ── */}
+      <div className="flex-1 px-4 pt-4 space-y-3">
+        {filtered.map((service) => {
+          const Icon = service.icon
+          return (
+            <Link
+              key={service.id}
+              to={service.to}
+              className="flex items-center gap-4 p-4 rounded-2xl bg-[#1c1b1b] border border-white/5 hover:border-[#ff6a00]/30 transition-all active:scale-[0.98] group"
+            >
+              {/* Icon box */}
+              <div
+                className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
+                style={{
+                  background: service.bg,
+                  border: `1px solid ${service.border}`,
+                }}
+              >
+                <Icon className="w-6 h-6" style={{ color: service.color }} />
+              </div>
 
-                  {/* Text */}
-                  <div>
-                    <p className="text-white font-bold text-sm leading-tight">{service.label}</p>
-                    <p className="text-[#A1A1AA] text-[11px] mt-1 leading-snug">{service.desc}</p>
-                  </div>
-
-                  {/* Arrow */}
-                  <div className="flex items-center gap-1 mt-auto">
-                    <span className="text-[11px] font-semibold" style={{ color: service.color }}>
-                      Explore
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-display text-sm font-bold text-white group-hover:text-[#ff6a00] transition-colors">
+                    {service.label}
+                  </h3>
+                  {service.popular && (
+                    <span className="px-1.5 py-0.2 rounded-full bg-[#ff6a00] text-black text-[9px] font-black">
+                      POPULAR
                     </span>
-                    <ChevronRight className="w-3 h-3" style={{ color: service.color }} />
-                  </div>
-                </Link>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-[#1A1A1A] border border-[#2A2A2A] flex items-center justify-center mb-4">
-              <Search className="w-8 h-8 text-zinc-600" />
-            </div>
-            <p className="text-white font-semibold">No services found</p>
-            <p className="text-[#A1A1AA] text-sm mt-1">Try a different search term</p>
-          </div>
-        )}
+                  )}
+                </div>
+                <p className="text-xs text-[#c6c6c7] mt-0.5 truncate">{service.desc}</p>
+              </div>
 
-        {/* CTA Banner */}
-        <div className="mt-6 p-4 bg-[#1A1A1A] border border-[#2A2A2A] rounded-2xl flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/15 border border-orange-500/25 flex items-center justify-center flex-shrink-0">
-            <Wrench className="w-5 h-5 text-orange-400" />
+              {/* Arrow */}
+              <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          )
+        })}
+
+        {/* ── Need Help Banner ── */}
+        <div className="rounded-2xl bg-[#201f1f] border border-white/10 p-4 mt-6 text-center space-y-1">
+          <p className="text-xs font-bold text-white">Need a custom service?</p>
+          <p className="text-[11px] text-[#c6c6c7]">
+            Our 24x7 automotive concierge is available to assist you.
+          </p>
+          <div className="pt-2">
+            <Link
+              to="/contact"
+              className="inline-flex items-center gap-1.5 text-xs text-[#ff6a00] font-bold hover:underline"
+            >
+              <span>Contact Concierge</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-white font-semibold text-sm">Need help choosing?</p>
-            <p className="text-[#A1A1AA] text-[11px] mt-0.5">Our team is ready to assist</p>
-          </div>
-          <Link to="/contact" className="flex items-center gap-1 text-orange-400 text-xs font-semibold flex-shrink-0">
-            Contact <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
         </div>
       </div>
     </div>
