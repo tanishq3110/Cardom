@@ -254,3 +254,4 @@ DO $$ BEGIN
       EXECUTE FUNCTION public.notify_on_new_ride_offer();
   END IF;
 END $$;
+
