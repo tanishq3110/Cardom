@@ -8,7 +8,7 @@
 }
 
 @theme {
-  /* ─── Cardom Design Tokens ─── */
+  /* ─── Cardom Kinetic Obsidian Design Tokens ─── */
 
   /* Orange accent palette */
   --color-orange-50: #fff7ed;
@@ -16,38 +16,56 @@
   --color-orange-200: #fed7aa;
   --color-orange-300: #fdba74;
   --color-orange-400: #fb923c;
-  --color-orange-500: #f97316;
+  --color-orange-500: #ff6a00;
   --color-orange-600: #ea580c;
   --color-orange-700: #c2410c;
   --color-orange-800: #9a3412;
   --color-orange-900: #7c2d12;
   --color-orange-950: #431407;
 
+  /* Kinetic Obsidian Dark Palette */
+  --color-kinetic-bg: #131313;
+  --color-kinetic-surface: #201f1f;
+  --color-kinetic-surface-low: #1c1b1b;
+  --color-kinetic-surface-lowest: #0e0e0e;
+  --color-kinetic-surface-high: #2a2a2a;
+  --color-kinetic-surface-highest: #353534;
+  --color-kinetic-surface-bright: #393939;
+  --color-kinetic-primary: #ff6a00;
+  --color-kinetic-success: #4ae176;
+  --color-kinetic-text: #e5e2e1;
+  --color-kinetic-muted: #c6c6c7;
+
   /* Near-black backgrounds */
-  --color-surface-base: #080808;
-  --color-surface-1: #0f0f0f;
-  --color-surface-2: #141414;
-  --color-surface-3: #1a1a1a;
-  --color-surface-4: #222222;
+  --color-surface-base: #131313;
+  --color-surface-1: #1c1b1b;
+  --color-surface-2: #201f1f;
+  --color-surface-3: #2a2a2a;
+  --color-surface-4: #353534;
 
   /* Text */
-  --color-text-primary: #ffffff;
-  --color-text-secondary: #a1a1aa;
-  --color-text-muted: #52525b;
+  --color-text-primary: #e5e2e1;
+  --color-text-secondary: #c6c6c7;
+  --color-text-muted: #8e8e93;
 
   /* Borders */
-  --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-default: rgba(255, 255, 255, 0.1);
-  --color-border-strong: rgba(255, 255, 255, 0.18);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-border-default: rgba(255, 255, 255, 0.12);
+  --color-border-strong: rgba(255, 255, 255, 0.2);
 
   /* Brand */
-  --color-brand: #f97316;
-  --color-brand-hover: #ea580c;
-  --color-brand-glow: rgba(249, 115, 22, 0.25);
+  --color-brand: #ff6a00;
+  --color-brand-hover: #e55e00;
+  --color-brand-glow: rgba(255, 106, 0, 0.28);
 
   /* Fonts */
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", "Fira Code", monospace;
+  --font-sans: "Outfit", "Space Grotesk", system-ui, -apple-system, sans-serif;
+  --font-display: "Outfit", sans-serif;
+  --font-headline: "Outfit", sans-serif;
+  --font-title: "Outfit", sans-serif;
+  --font-body: "Space Grotesk", sans-serif;
+  --font-label: "Space Grotesk", sans-serif;
+  --font-mono: "Space Grotesk", monospace;
 
   /* Radius */
   --radius-sm: 0.375rem;
@@ -96,37 +114,56 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  background-color: #131313;
 }
 
 body {
-  background-color: var(--color-surface-base);
-  color: var(--color-text-primary);
-  font-family: var(--font-sans);
+  background-color: #131313;
+  color: #e5e2e1;
+  font-family: "Outfit", "Space Grotesk", sans-serif;
   min-height: 100dvh;
   margin: 0;
 }
 
 /* ─── Scrollbar ─── */
 ::-webkit-scrollbar       { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: var(--color-surface-1); }
+::-webkit-scrollbar-track { background: #131313; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-surface-4);
+  background: #2a2a2a;
   border-radius: 9999px;
 }
-::-webkit-scrollbar-thumb:hover { background: var(--color-brand); }
+::-webkit-scrollbar-thumb:hover { background: #ff6a00; }
 
 /* ─── Selection ─── */
 ::selection {
-  background-color: rgba(249, 115, 22, 0.3);
+  background-color: rgba(255, 106, 0, 0.35);
   color: #fff;
 }
 
 /* ─── Focus ring ─── */
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid #ff6a00;
   outline-offset: 2px;
 }
 
 /* ─── Hide scrollbar utility ─── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ─── Material Symbols ─── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  vertical-align: middle;
+}

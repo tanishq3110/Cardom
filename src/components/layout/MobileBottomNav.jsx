@@ -1,15 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Home, Car, Wrench, CalendarCheck, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/context/AuthContext'
-
-const NAV_ITEMS = [
-  { label: 'Home',     to: '/',               icon: Home },
-  { label: 'Cars',     to: '/cars',           icon: Car },
-  { label: 'Services', to: '/services',       icon: Wrench },
-  { label: 'Bookings', to: '/bookings',       icon: CalendarCheck },
-  { label: 'Profile',  to: '/mobile-profile', icon: User },
-]
 
 export function MobileBottomNav() {
   const { pathname } = useLocation()
@@ -20,78 +11,118 @@ export function MobileBottomNav() {
   const isSplash = pathname === '/splash'
   if (isCarDetail || isSplash) return null
 
+  const isHome = pathname === '/' || pathname === '/home'
+  const isExplore = pathname.startsWith('/cars')
+  const isSell = pathname.startsWith('/sell')
+  const isServices = pathname.startsWith('/services') || pathname.startsWith('/bookings')
+  const isProfile = pathname === '/mobile-profile' || pathname === '/account' || pathname === '/profile'
+
   return (
     <nav
       aria-label="Mobile Navigation"
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-40 md:hidden',
-        'bg-[#111111]/98 backdrop-blur-2xl border-t border-[#222]',
-        'shadow-[0_-2px_20px_rgba(0,0,0,0.6)]',
+        'fixed bottom-0 inset-x-0 z-50 md:hidden',
+        'bg-[#0e0e0e]/95 backdrop-blur-xl border-t border-white/10',
+        'shadow-[0_-8px_24px_rgba(0,0,0,0.7)]',
       )}
-      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 8px)' }}
+      style={{ paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 6px)' }}
     >
-      <div className="flex items-center justify-around max-w-lg mx-auto px-1 pt-2 pb-1">
-        {NAV_ITEMS.map((item) => {
-          const Icon = item.icon
-          const isActive =
-            item.to === '/'
-              ? pathname === '/' || pathname === '/home'
-              : item.to === '/mobile-profile'
-              ? pathname === '/mobile-profile' || pathname === '/account' || pathname === '/profile'
-              : pathname.startsWith(item.to)
+      <div className="flex justify-around items-center h-16 px-2 max-w-lg mx-auto">
+        {/* Home */}
+        <Link
+          to="/"
+          className={cn(
+            'flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[48px] transition-all',
+            isHome ? 'text-[#ff6a00] font-semibold' : 'text-[#c6c6c7] hover:text-[#e5e2e1]',
+          )}
+        >
+          <span
+            className="material-symbols-outlined text-[22px]"
+            style={{ fontVariationSettings: isHome ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            home
+          </span>
+          <span className="text-[11px] font-medium tracking-tight">Home</span>
+        </Link>
 
-          return (
-            <Link
-              key={item.label}
-              to={item.to}
-              className={cn(
-                'relative flex flex-col items-center justify-center py-1.5 px-3 rounded-xl transition-all duration-200 min-w-[58px]',
-                isActive ? 'text-orange-500' : 'text-[#555]',
-              )}
-            >
-              {/* Active background highlight */}
-              {isActive && (
-                <span className="absolute inset-0 rounded-xl bg-orange-500/8" />
-              )}
+        {/* Explore */}
+        <Link
+          to="/cars"
+          className={cn(
+            'flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[48px] transition-all',
+            isExplore ? 'text-[#ff6a00] font-semibold' : 'text-[#c6c6c7] hover:text-[#e5e2e1]',
+          )}
+        >
+          <span
+            className="material-symbols-outlined text-[22px]"
+            style={{ fontVariationSettings: isExplore ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            explore
+          </span>
+          <span className="text-[11px] font-medium tracking-tight">Explore</span>
+        </Link>
 
-              {/* Icon wrapper */}
-              <div className="relative">
-                <Icon
-                  className={cn(
-                    'w-6 h-6 transition-all duration-200',
-                    isActive ? 'stroke-[2.2]' : 'stroke-[1.7]',
-                  )}
-                />
-                {/* Notification badge */}
-                {item.label === 'Profile' && unreadInquiriesCount > 0 && (
-                  <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-orange-500 ring-2 ring-[#111111] flex items-center justify-center text-[9px] font-bold text-white px-0.5">
-                    {unreadInquiriesCount > 9 ? '9+' : unreadInquiriesCount}
-                  </span>
-                )}
-                {item.label === 'Bookings' && unreadNotificationsCount > 0 && (
-                  <span className="absolute -top-1 -right-1.5 min-w-[14px] h-3.5 rounded-full bg-orange-500 ring-2 ring-[#111111] flex items-center justify-center text-[9px] font-bold text-white px-0.5">
-                    {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
-                  </span>
-                )}
-              </div>
+        {/* Center Sell Action */}
+        <Link
+          to="/sell"
+          className="flex flex-col items-center justify-center min-w-[56px] min-h-[48px] transition-all group -mt-1"
+        >
+          <div
+            className={cn(
+              'w-9 h-9 rounded-full flex items-center justify-center transition-all shadow-md',
+              isSell
+                ? 'bg-[#ff6a00] text-black shadow-orange-500/30 ring-2 ring-[#ff6a00]/40'
+                : 'bg-[#2a2a2a] border border-[#ff6a00]/40 text-[#ff6a00] group-hover:scale-105',
+            )}
+          >
+            <span className="material-symbols-outlined text-[20px] font-bold">add</span>
+          </div>
+          <span className="text-[11px] font-medium text-[#ff6a00] mt-0.5 tracking-tight">Sell</span>
+        </Link>
 
-              {/* Label */}
-              <span
-                className={cn(
-                  'text-[10px] mt-1 leading-none font-semibold tracking-tight',
-                  isActive ? 'text-orange-500' : 'text-[#666]',
-                )}
-              >
-                {item.label}
-              </span>
+        {/* Services */}
+        <Link
+          to="/services"
+          className={cn(
+            'flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[48px] transition-all relative',
+            isServices ? 'text-[#ff6a00] font-semibold' : 'text-[#c6c6c7] hover:text-[#e5e2e1]',
+          )}
+        >
+          <span
+            className="material-symbols-outlined text-[22px]"
+            style={{ fontVariationSettings: isServices ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            build_circle
+          </span>
+          <span className="text-[11px] font-medium tracking-tight">Services</span>
+          {unreadNotificationsCount > 0 && (
+            <span className="absolute 1 top-1 right-2 min-w-[14px] h-3.5 rounded-full bg-[#ff6a00] text-black text-[9px] font-bold flex items-center justify-center px-0.5">
+              {unreadNotificationsCount > 9 ? '9+' : unreadNotificationsCount}
+            </span>
+          )}
+        </Link>
 
-              {/* Active dot */}
-              {isActive && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-orange-500" />
-              )}
-            </Link>
-          )
-        })}
+        {/* Profile */}
+        <Link
+          to="/mobile-profile"
+          className={cn(
+            'flex flex-col items-center justify-center gap-0.5 min-w-[56px] min-h-[48px] transition-all relative',
+            isProfile ? 'text-[#ff6a00] font-semibold' : 'text-[#c6c6c7] hover:text-[#e5e2e1]',
+          )}
+        >
+          <span
+            className="material-symbols-outlined text-[22px]"
+            style={{ fontVariationSettings: isProfile ? "'FILL' 1" : "'FILL' 0" }}
+          >
+            account_circle
+          </span>
+          <span className="text-[11px] font-medium tracking-tight">Profile</span>
+          {unreadInquiriesCount > 0 && (
+            <span className="absolute 1 top-1 right-2 min-w-[14px] h-3.5 rounded-full bg-[#ff6a00] text-black text-[9px] font-bold flex items-center justify-center px-0.5">
+              {unreadInquiriesCount > 9 ? '9+' : unreadInquiriesCount}
+            </span>
+          )}
+        </Link>
       </div>
     </nav>
   )
