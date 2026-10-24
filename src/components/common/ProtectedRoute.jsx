@@ -37,7 +37,7 @@ export function ProtectedRoute({ children }) {
           You are authenticated as <span className="text-white font-mono">{user.email}</span>, but your account does not have Cardom Administrator authorization.
         </p>
         <button
-          onClick={() => window.location.href = '/login'}
+          onClick={() => window.location.href = '/admin/login'}
           className="mt-6 px-4 py-2 rounded-xl bg-[#202020] border border-[#303030] text-sm text-white hover:bg-[#282828] transition-colors"
         >
           Return to Admin Login

@@ -34,6 +34,7 @@ export function AdminAuthProvider({ children }) {
       } else {
         setAdminProfile(null)
         setRole(null)
+        setCanBootstrap(false)
         const canBoot = await checkCanBootstrap()
         setCanBootstrap(canBoot)
       }

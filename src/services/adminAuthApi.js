@@ -79,21 +79,6 @@ export async function checkAdminAccess() {
 }
 
 /**
- * Safely check if system has zero admins (can bootstrap) even when unauthenticated
- */
-export async function checkCanBootstrap() {
-  try {
-    const { data, error } = await supabase.rpc('admin_can_bootstrap')
-    if (!error && typeof data === 'boolean') {
-      return data
-    }
-  } catch {
-    // ignore
-  }
-  return true
-}
-
-/**
  * Bootstraps the very first Super Admin when the system is initialized
  */
 export async function bootstrapFirstAdmin(fullName = 'Super Admin') {
@@ -124,6 +109,30 @@ export async function bootstrapFirstAdmin(fullName = 'Super Admin') {
     return { success: true, data }
   } catch (err) {
     return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Check if the system allows first-time super admin bootstrap.
+ * Safe to call even for unauthenticated clients.
+ */
+export async function checkCanBootstrap() {
+  try {
+    const { data, error } = await supabase.rpc('admin_can_bootstrap')
+    if (!error && typeof data === 'boolean') {
+      return data
+    }
+    // Fallback: query count
+    const { count, error: countErr } = await supabase
+      .from('admin_profiles')
+      .select('*', { count: 'exact', head: true })
+
+    if (!countErr && count === 0) {
+      return true
+    }
+    return false
+  } catch {
+    return false
   }
 }
 

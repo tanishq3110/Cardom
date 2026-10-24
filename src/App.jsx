@@ -228,8 +228,8 @@ export default function App() {
           }
         />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        {/* Fallback — redirect any unmatched path (including bare /admin) to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </AdminAuthProvider>
   )
