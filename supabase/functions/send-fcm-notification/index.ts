@@ -6,12 +6,19 @@
 // - Firebase private credentials stored ONLY in Supabase project secrets
 // - Service role Supabase key used ONLY here (never in client code)
 // - Token data never exposed to clients
+// - WEBHOOK_SECRET is required; requests without a valid matching Authorization
+//   header are always rejected (fail-closed). The secret must be set as a
+//   Supabase project secret and configured identically in the Database Webhook
+//   that triggers this function ("Bearer <secret>" in the Authorization header).
 //
 // Required Supabase Secrets:
+//   WEBHOOK_SECRET      - shared secret; must match the Authorization header
+//                         sent by the Database Webhook ("Bearer <secret>")
 //   FCM_PROJECT_ID      - your Firebase project ID
 //   FCM_CLIENT_EMAIL    - service account email
 //   FCM_PRIVATE_KEY     - service account private key (with real \n newlines)
 //   SUPABASE_URL        - your Supabase project URL
+//   SUPABASE_URL        - your Supabase project URL (auto-set by Supabase)
 //   SUPABASE_SERVICE_ROLE_KEY - Supabase service role key (for server operations)
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
@@ -21,6 +28,10 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const FCM_PROJECT_ID = Deno.env.get('FCM_PROJECT_ID')!
 const FCM_CLIENT_EMAIL = Deno.env.get('FCM_CLIENT_EMAIL')!
 const FCM_PRIVATE_KEY = Deno.env.get('FCM_PRIVATE_KEY')!
+
+// Read once at module scope. An absent or empty value means the function will
+// reject every request — this is intentional (fail-closed).
+const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') ?? ''
 
 // ── Types ────────────────────────────────────────────────────
 interface NotificationEvent {
@@ -167,6 +178,13 @@ Deno.serve(async (req: Request): Promise<Response> => {
     const authHeader = req.headers.get('Authorization') || ''
     const WEBHOOK_SECRET = Deno.env.get('WEBHOOK_SECRET') || ''
     if (WEBHOOK_SECRET && authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+    // Fail-closed authentication:
+    // Reject the request if WEBHOOK_SECRET is not configured, or if the
+    // incoming Authorization header does not exactly match "Bearer <secret>".
+    // This ensures the function cannot be invoked without valid credentials,
+    // even if the secret is accidentally omitted from project secrets.
+    const authHeader = req.headers.get('Authorization') ?? ''
+    if (!WEBHOOK_SECRET || authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
       return new Response('Unauthorized', { status: 401 })
     }
 
